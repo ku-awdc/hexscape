@@ -22,12 +22,13 @@ Depends:
     tidyverse
 Imports:
     sf,
+    igraph,
     pbapply
 Suggests: 
     eurostat,
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown,
+    markdown,
     spelling
 Config/testthat/edition: 3
 VignetteBuilder: knitr
