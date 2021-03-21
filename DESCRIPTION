@@ -22,6 +22,7 @@ Depends:
     tidyverse
 Imports:
     sf,
+    rmapshaper,
     igraph,
     pbapply
 Suggests: 

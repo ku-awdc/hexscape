@@ -14,4 +14,9 @@ set_storage_folder <- function(folder){
 
   ## TODO: look for the necessary files and print a message saying where to download stuff from
 
+  ## TODO: check this is not already set:
+  estfld <- file.path(folder, "eurostat_cache")
+  if(!dir.exists(estfld)) dir.create(estfld)
+  options(eurostat_cache_dir = estfld)
+
 }
