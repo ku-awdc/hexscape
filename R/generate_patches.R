@@ -31,7 +31,7 @@
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_border=FALSE, buffer_dist=0.001*hex_width, min_prop = 0.01, simplify_keep=0.5){
+generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_border=FALSE, buffer_dist=0.001*hex_width, min_prop = 0.01, simplify_keep=0.1){
 
   stopifnot(is.numeric(hex_width) && length(hex_width)==1 && !is.na(hex_width))
   hexwth <- hex_width
@@ -62,12 +62,12 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
   if(!is.null(land_use)){
     stopifnot(inherits(land_use, "data.frame"))
     stopifnot("Category" %in% names(land_use))
-    stopifnot(is.factor(land_use$Category), length(levels(land_use$Category))==4, all(c("Impassable","Passable","Food","Habitat") %in% levels(land_use$Category)))
+    stopifnot(is.factor(land_use$Category), "Impassable" %in% levels(land_use$Category))
     use_categories <- TRUE
   }
   if(inherits(landscape, "sf")) landscape <- landscape[[attr(landscape, "sf_column", TRUE)]]
   stopifnot(inherits(landscape, "sfc"))
-  landscape <- st_union(landscape)
+  landscape <- st_buffer(st_union(landscape), dist=0)
   bbox <- st_bbox(landscape)
 
   stopifnot(is.numeric(buffer_dist) && length(buffer_dist)==1 && buffer_dist > 0)
@@ -84,7 +84,12 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     mutate(y = bbox["ymin"] + (hexhgt+hexlth)*row/2) %>%
     mutate(Index = 1:n()) %>%
     split(.$Index) %>%
-    map_df( ~ .x %>% mutate(geometry = genpoly(x, y), centroid = st_sfc(st_point(c(x,y))))) %>%
+    pblapply(function(.x) .x %>% mutate(geometry = genpoly(x, y), centroid = st_sfc(st_point(c(x,y))))) %>%
+    bind_rows() ->
+  patches
+
+  cat("Intersecting with the provided landscape...\n")
+  patches %>%
     st_as_sf() %>%
     mutate(OK = st_intersects(geometry, landscape, sparse=FALSE)[,1]) %>%
     filter(OK) %>%
@@ -103,7 +108,11 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     impassable <- land_use %>%
       filter(Category == "Impassable")
     impassable <- impassable[[attr(impassable, "sf_column", TRUE)]]
-    impassable <- st_intersection(landscape, st_union(impassable))
+    impassable <- st_union(impassable) %>%
+      ms_simplify(keep=simplify_keep, keep_shapes=FALSE) %>%
+      st_intersection(landscape)
+    # ggplot(st_simplify(impassable)) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
+    # ggplot(st_simplify(impassable)) + geom_sf()+ coord_sf(xlim=c(520000, 530000), ylim=c(6120000, 6130000), crs= 25832, datum=sf::st_crs(25832))
 
     pblapply(seq_len(nrow(patches)), function(i){
       suppressWarnings(st_cast(st_difference(patches[i,], impassable), to="POLYGON"))
@@ -128,11 +137,11 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     patches
   }
 
-  ## Finish by simplifying the patches slightly, removing the now obsolete patches
-  ## and re-indexing:
+  ## Finish by removing the now obsolete patches and re-indexing:
+  cat("Re-indexing hexagons...\n")
   patches %>%
     bind_rows() %>%
-    ms_simplify(keep=simplify_keep, keep_shapes=FALSE) %>%
+#    ms_simplify(keep=simplify_keep, keep_shapes=FALSE) %>%
     ## st_buffer with dist=0 resolves any self intersections:
     mutate(geometry = st_buffer(geometry, dist=0)) %>%
     # See also:
@@ -152,27 +161,70 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
   if(use_categories){
     cat("Determining land use summaries...\n")
 
-    pblapply(unique(land_use$Category), function(category){
+    ## TODO: break up into batches of <=100 just to get a progress bar
+    make_chunks <- function(x, max_per_chunk=100L){
+      nchunks <- ceiling(nrow(patches)/100L)
+      ppc <- rep(floor(length(x) / nchunks), nchunks)
+      if(sum(ppc) < length(x)){
+        ppc[1:(length(x)-sum(ppc))] <- ppc[1:(length(x)-sum(ppc))] + 1
+      }
+      stopifnot(sum(ppc) == length(x))
+      ppc_st <- cumsum(lag(ppc,1,0))
+      ppc_en <- ppc_st + ppc
+      chunks <- lapply(seq(1L,nchunks,1L), function(y) seq(ppc_st[y]+1,ppc_en[y],1))
+      ccheck <- unlist(chunks)
+      stopifnot(length(x) == length(ccheck) && all(x %in% ccheck))
+      return(chunks)
+    }
 
-      if(category=="Impassable") return(NULL)
+    cat("Intersecting land use with the landscape...\n")
+    levels(land_use$Category) %>%
+      str_subset(fixed("Impassable"), negate=TRUE) %>%
+      `names<-`(.,.) %>%
+      as.list() %>%
+      pblapply(function(category)
+        land_use %>%
+          filter(Category == category) %>%
+          st_union() %>%
+          st_intersection(landscape) %>%
+          ms_simplify(keep=simplify_keep, keep_shapes=TRUE, explode=TRUE, method="dp") %>%
+          ## st_buffer with dist=0 resolves any self intersections:
+          st_buffer(dist=0) %>%
+          st_union()
+      ) ->
+      relevant_land
 
-      relevant_land <- land_use %>%
-        filter(Category == category)
-      relevant_land <- relevant_land[[attr(relevant_land, "sf_column", TRUE)]]
-      relevant_land <- st_intersection(landscape, st_union(relevant_land))
+    # ggplot(relevant_land[[2]]) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
 
-      area <- patches %>%
-        mutate(ok = st_intersects(geometry, relevant_land, sparse=FALSE)) %>%
-        filter(ok) %>%
-        mutate(Category = category, total_area=area, area = as.numeric(st_area(st_intersection(geometry, relevant_land)))) %>%
-        as_tibble() %>%
-        select(Index, total_area, Category, area)
-
-      return(area)
+    cat("Determining land use summaries...\n")
+    make_chunks(which(!is.na(patches$Index))) %>%
+      pblapply(function(ch){
+        tptch <- patches[ch,]
+        names(relevant_land) %>%
+          lapply(function(rl){
+            tptch %>%
+              mutate(ok = st_intersects(geometry, relevant_land[[rl]], sparse=FALSE)) %>%
+              filter(ok) %>%
+              mutate(Category = rl, area = as.numeric(st_area(st_intersection(geometry, relevant_land[[rl]])))) %>%
+              as_tibble() %>%
+              select(Index, Category, area)
+          }) %>%
+          bind_rows()
     }) %>%
       bind_rows() %>%
-      select(Index, total_area, Category, area) ->
+      ## Add back in patches that have been removed:
+      full_join(
+        patches %>%
+          as_tibble() %>%
+          filter(!is.na(Index)) %>%
+          select(Index, total_area=area) %>%
+          expand_grid(Category = names(relevant_land)),
+        by=c("Index","Category")
+      ) %>%
+      replace_na(list(area = 0.0)) ->
     patch_land_use
+
+    stopifnot(all(na.omit(patches$Index) %in% patch_land_use$Index), nrow(patch_land_use) == (nrow(patches)-1)*length(relevant_land))
 
     ## Some land area is lost due to simplification:
     patch_land_use %>%
@@ -181,8 +233,16 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
       mutate(loss = 1- areasum/total_area) %>%
       arrange(desc(loss)) ->
       patchsum
+
+    ## TODO: make sure not too many patches are excluded - maybe look at bbox for landscape and land use??
+
+    if(FALSE){
+
     head(patchsum)
     tail(patchsum)
+
+    #with(patchsum, plot(total_area, areasum)); abline(0,1)
+    #mean(patchsum$loss)
 
     patches %>% filter(Index=="157")
     ggplot() +
@@ -194,21 +254,42 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
       geom_sf(data=patches %>% filter(row %in% 13:15, col %in% 48:50)) +
       geom_sf(data=patches %>% filter(Index=="482"), fill="red", col="red")
 
+    }
+
+
     patch_land_use %>%
       group_by(Index) %>%
-      mutate(proportion = area / sum(area)) %>%
-      select(Index, Category, proportion) %>%
-      spread(Category, proportion, fill=0) %>%
-      select(Index, Food, Habitat) ->
+      mutate(area_sum = sum(area), proportion = area / area_sum) %>%
+      ungroup() %>%
+      mutate(Category = factor(Category, levels=levels(land_use$Category))) %>%
+      arrange(Category) %>%
+      select(Index, area_sum, Category, proportion) %>%
+      spread(Category, proportion, fill=0.0) %>%
+      bind_rows(
+        tibble(Index = NA_integer_, area_sum = NA_real_, Category = names(relevant_land), proportion = NA_real_) %>%
+          spread(Category, proportion)
+      ) ->
       patch_land_use_wd
+    stopifnot(all(names(patch_land_use_wd)[1:2] == c("Index","area_sum")))
+    names(patch_land_use_wd) <- c("Index","area_sum",str_c("LU_", names(patch_land_use_wd)[-(1:2)]))
+
+    stopifnot(all(patches$Index %in% patch_land_use_wd$Index), nrow(patch_land_use_wd) == nrow(patches))
 
     patches <- patches %>%
-      full_join(patch_land_use_wd, by="Index") %>%
-      replace_na(list(Food=0, Habitat=0)) %>%
-      mutate(Food = case_when(is.na(Index) ~ NA_real_, TRUE ~ Food)) %>%
-      mutate(Habitat = case_when(is.na(Index) ~ NA_real_, TRUE ~ Habitat)) %>%
-      mutate(BoarScore = Food/2 + Habitat)
+      full_join(patch_land_use_wd, by="Index")
 
+    if(FALSE){
+    ggplot(patches, aes(fill=LU_Passable)) + geom_sf()
+    ggplot(patches, aes(fill=LU_Low)) + geom_sf()
+    ggplot(patches, aes(fill=LU_Medium)) + geom_sf()
+    ggplot(patches, aes(fill=LU_High)) + geom_sf()
+    ggplot(patches, aes(fill=LU_Medium+LU_High)) + geom_sf()
+    ggplot(patches, aes(fill=LU_Passable+LU_Low)) + geom_sf()
+
+    summary(patches)
+
+    plot(ecdf(patches$LU_Passable))
+    }
   }
 
   return(patches)
