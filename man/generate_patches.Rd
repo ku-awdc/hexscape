@@ -8,10 +8,8 @@ generate_patches(
   landscape,
   hex_width,
   land_use = NULL,
-  calculate_border = FALSE,
-  buffer_dist = 0.001 * hex_width,
   min_prop = 0.01,
-  simplify_keep = 0.5
+  simplify_keep = 0.1
 )
 }
 \arguments{
@@ -34,9 +32,6 @@ corners <- tribble(~x, ~y,
 landscape <- sf::st_sfc(sf::st_multipolygon(list(list(as.matrix(corners)))))
 ## And add our hexagons:
 patches <- generate_patches(landscape, hex_width=2)
-patches
-ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
-patches <- generate_patches(landscape, hex_width=2, calculate_border = TRUE)
 patches
 ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 

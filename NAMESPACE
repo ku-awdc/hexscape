@@ -3,6 +3,7 @@
 export(extract_clc)
 export(extract_corine)
 export(extract_map)
+export(generate_neighbours)
 export(generate_patches)
 export(hexscape_getOption)
 export(hexscape_options)

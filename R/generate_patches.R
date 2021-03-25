@@ -26,12 +26,11 @@
 #' patches <- generate_patches(landscape, hex_width=2)
 #' patches
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
-#' patches <- generate_patches(landscape, hex_width=2, calculate_border = TRUE)
-#' patches
-#' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_border=FALSE, buffer_dist=0.001*hex_width, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.01, simplify_keep=0.1){
+
+  st <- Sys.time()
 
   stopifnot(is.numeric(hex_width) && length(hex_width)==1 && !is.na(hex_width))
   hexwth <- hex_width
@@ -62,7 +61,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
   if(!is.null(land_use)){
     stopifnot(inherits(land_use, "data.frame"))
     stopifnot("Category" %in% names(land_use))
-    stopifnot(is.factor(land_use$Category), "Impassable" %in% levels(land_use$Category))
+    stopifnot(is.factor(land_use$Category), "Impassable" %in% levels(land_use$Category), "Passable" %in% levels(land_use$Category))
     use_categories <- TRUE
   }
   if(inherits(landscape, "sf")) landscape <- landscape[[attr(landscape, "sf_column", TRUE)]]
@@ -70,7 +69,6 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
   landscape <- st_buffer(st_union(landscape), dist=0)
   bbox <- st_bbox(landscape)
 
-  stopifnot(is.numeric(buffer_dist) && length(buffer_dist)==1 && buffer_dist > 0)
   stopifnot(is.numeric(min_prop) && length(min_prop)==1 && min_prop <= 1 && min_prop >= 0)
 
   # An over-estimate of the number of centroids needed:
@@ -199,6 +197,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     cat("Determining land use summaries...\n")
     make_chunks(which(!is.na(patches$Index))) %>%
       pblapply(function(ch){
+        # Note: geometry column is actually a list, so that is not copied here:
         tptch <- patches[ch,]
         names(relevant_land) %>%
           lapply(function(rl){
@@ -278,6 +277,24 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     patches <- patches %>%
       full_join(patch_land_use_wd, by="Index")
 
+    ## Where areasum is zero attribute it all to passable:
+    patches %>%
+      mutate(LU_Passable = case_when(
+        area_sum < sqrt(.Machine$double.eps) ~ 1.0,
+        TRUE ~ LU_Passable
+      )) ->
+      patches
+
+    ## Make sure proportions sum to unity:
+    checksum <- patches %>%
+      as_tibble() %>%
+      filter(!is.na(Index)) %>%
+      select(starts_with("LU")) %>%
+      as.matrix() %>%
+      apply(1,sum)
+    stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
+
+
     if(FALSE){
     ggplot(patches, aes(fill=LU_Passable)) + geom_sf()
     ggplot(patches, aes(fill=LU_Low)) + geom_sf()
@@ -292,6 +309,18 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
     }
   }
 
+  ## Finally re-calculate the centroids:
+  cat("Recalculating centroids...\n")
+  patches %>%
+    mutate(hex_centroid = centroid, centroid = st_centroid(geometry)) %>%
+    select(Index, row, col, centroid, hex_centroid, area, lu_sum=area_sum, starts_with("LU"), geometry) ->
+    patches
+
+  class(patches) <- c("patches", class(patches))
+  attr(patches, "hex_width") <- hex_width
+
+  cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
+
   return(patches)
 
   ## TODO: check that bbox of (st_union of) land_use is bigger than the landscape, and return % unexplained landuse??
@@ -304,162 +333,5 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, calculate_bord
   # patches %>% group_by(row,col) %>% mutate(N=n()) %>% filter(N>2)
   # ggplot(patches %>% filter(row %in% 45:47, col %in% 46:48), aes(label=str_c(col,",",row))) + geom_sf() + geom_sf_label()
 
-  ## Work out nearest neighbours based on hexagon properties:
-
-  cat("Calculating neighbours for", nrow(patches), "hexagons...\n")
-
-  patches %>%
-    mutate(geometry = st_buffer(geometry, dist=buffer_dist)) %>%
-    select(Index, centroid, area, geometry) ->
-    neighbours
-
-  if(!calculate_border){
-
-    ## Neighbours method 1:  use st_join to see which patches and neighbours overlap:
-    neighbours %>%
-      select(Neighbour = Index, nb_centroid=centroid, nb_area=area) %>%
-      st_join(neighbours, join=st_intersects) %>%
-      filter(Neighbour != Index) %>%
-      mutate(Border = NA_real_) ->
-      neighbours
-    # Note: this is fast for small # patches but may not scale as well?
-    # and (more importantly) does not give us the length of the border
-
-  }else{ # if !calculate_border
-
-    ## Neighbours method 2:  use st_intersection to get actual area (and therefore length) of border:
-    patches %>%
-      mutate(geometry = st_buffer(geometry, dist=buffer_dist)) ->
-      neighbours
-
-    ## Neighbours are limited to one of the following 8 options:
-    expand_grid(row_adj=seq(-1,1,1), col_adj=seq(-1,1,1)) %>%
-      filter(row_adj!=0 | col_adj!=0) %>%
-      mutate(NeighbourNumber = 1:n()) %>%
-      split(.$NeighbourNumber) %>%
-      map_df( ~ bind_cols(.x, neighbours)) %>%
-      mutate(row = row + row_adj, col = col + col_adj) %>%
-      # Remove the 2 non-neighbours based on odd vs even row:
-      mutate(offset = as.logical(row %% 2 < 0.5)) %>%
-      mutate(using = case_when(
-        row_adj == 0 ~ TRUE,
-        col_adj == 0 ~ TRUE,
-        !offset & col_adj>0 ~ TRUE,
-        offset & col_adj<0 ~ TRUE,
-        TRUE ~ FALSE
-      )) %>%
-      filter(using) %>%
-      select(Neighbour=Index, row, col, nb_centroid=centroid, nb_geometry=geometry, nb_area=area) %>%
-      as_tibble() %>%
-      right_join(neighbours, by=c("row","col")) %>%
-      select(Index, Neighbour, area, centroid, geometry, nb_area, nb_centroid, nb_geometry) ->
-      neighbours
-
-    #	rdpt <- patches %>% slice_sample(n=1)
-    #	ggplot() +
-    #	  geom_sf(data=rdpt, fill="red") +
-    #	  geom_sf(aes(geometry=nb_geometry), neighbours %>% filter(Index==rdpt$Index))
-
-    # We have mostly 6 potential neighbours, but sometimes fewer (coastlines),
-    # and sometimes more (split patches)
-    # neighbours %>% count(Index) %>% count(n)
-    # NB: some patches may even have zero potential neighbours (but unlikely)
-
-    ## Now we have to calculate intersections a fairly slow way:
-    neighbours %>%
-      mutate(complete_area = area > ((1-min_prop)*hexarea) & nb_area > ((1-min_prop)*hexarea)) ->
-      neighbours
-
-    ## Shortcut for neighbours we know to be complete (i.e. the majority for simple landscapes):
-    neighbours %>%
-      filter(complete_area) %>%
-      mutate(Border = hexlth) ->
-      neighbours_complete_area
-
-    ## No shortcut for the rest:
-    neighbours %>%
-      filter(!complete_area) ->
-      neighbours_incomplete_area
-
-    neighbours_incomplete_area$Intsct <- pbsapply(seq_len(nrow(neighbours_incomplete_area)),
-                                                  function(i){
-                                                    x <<- neighbours_incomplete_area[i,]
-                                                    intsct <- st_area(st_intersection(x$geometry, x$nb_geometry))
-                                                    return(intsct)
-
-                                                    ### DEMO CODE:
-
-                                                    # Adjust for the buffer distance:
-                                                    area <- as.numeric(st_area(intsct), units="m")
-                                                    bdr <- (area - (buffer_dist*2)) / (buffer_dist*2)
-
-                                                    lstr <- st_union(st_intersection(x$boundary, x$nb_boundary))
-                                                    # Not always true!!!
-                                                    stopifnot(st_geometry_type(lstr)=="LINESTRING")
-                                                    as.numeric(st_length(lstr), units="m")
-
-                                                    ggplot() +
-                                                      geom_sf(data=patches %>% filter(Index %in% c(x$Index, x$Neighbour))) +
-                                                      geom_sf(data=intsct, col="red") +
-                                                      geom_sf(data=lstr, col="blue")
-
-                                                  })
-
-    neighbours_incomplete_area %>%
-      mutate(Border = (as.numeric(Intsct, units="m") - (buffer_dist*2)) / (buffer_dist*2)) %>%
-      filter(!is.na(Border)) %>%
-      select(-Intsct) %>%
-      bind_rows(neighbours_complete_area) %>%
-      filter(Border > min_prop*hexlth) ->
-      neighbours
-
-    # We still have mostly 6 neighbours, but sometimes fewer (coastlines),
-    # and more rarely more (split patches that aren't islands)
-    # neighbours %>% count(Index) %>% count(n)
-    # NB: some patches may even have zero potential neighbours (but unlikely)
-
-  } # \if calculate_border
-
-  # Finally add the direction to these neighbours:
-  st_coordinates(neighbours$nb_centroid - neighbours$centroid) %>%
-    as_tibble() %>%
-    bind_cols(neighbours %>% select(Index, Neighbour, Border, nb_area)) %>%
-    mutate(Direction = case_when(
-      abs(Y)<sqrt(.Machine$double.eps) & X > 0 ~ "E",
-      abs(Y)<sqrt(.Machine$double.eps) & X < 0 ~ "W",
-      Y > 0 & X > 0 ~ "NE",
-      Y < 0 & X > 0 ~ "SE",
-      Y > 0 & X < 0 ~ "NW",
-      Y < 0 & X < 0 ~ "SW"
-    )) %>%
-    mutate(Direction = factor(Direction, levels=c("NE","E","SE","SW","W","NW"))) %>%
-    select(Index, Neighbour, Border, Direction, nb_area) ->
-    neighbours
-
-  ## Note: we can easily add "most significant" directional neighbours using:
-  msnbs <- neighbours %>%
-    group_by(Index, Direction) %>%
-    arrange(desc(Border), desc(nb_area)) %>%
-    slice(1) %>%
-    ungroup() %>%
-    select(Index, Neighbour, Direction) %>%
-    spread(Direction, Neighbour)
-  ## BUT if not calculating borders then the "true" directional neighbour is chosen
-  ## according to the neighbour patch size - i.e. may not be correct!!
-
-  # For now I will do this for back-compatibility BUT I am going to change the class to remove this
-  # when I put it into a package (ie patch-level info will be separate to the network graph)
-  patches <- full_join(patches, msnbs, by="Index")
-
-  ## Finally re-calculate the centroids:
-  patches %>%
-    mutate(hex_centroid = centroid, centroid = st_centroid(geometry)) %>%
-    select(Index, row, col, centroid, hex_centroid, area, geometry, NE:NW) ->
-    patches
-
-  stopifnot(all(levels(neighbours$Direction) %in% names(patches)))
-
-  class(patches) <- c("patches", class(patches))
-  return(patches)
 
 }

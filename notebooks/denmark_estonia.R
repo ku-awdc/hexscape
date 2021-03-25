@@ -47,6 +47,9 @@ clc <- extract_clc() %>%
   arrange(Category, CLC_CODE)
 stopifnot(all(!is.na(clc$Category)))
 
+## Check it is sensible:
+clc %>% print(n=Inf)
+
 land_use_summary <- land_use %>%
   filter(NUTS_ID %in% jutland_nuts) %>%
   as_tibble() %>%
@@ -99,8 +102,54 @@ patches <- generate_patches(map_jutland, hex_width=2000, land_use=land_use_jutla
 # Nearly all patches are mostly food or habitat:
 summary(patches$LU_Medium + patches$LU_High)
 
-ggplot(patches, aes(fill=LU_Medium+LU_High)) +
+ggplot(patches, aes(fill=LU_Medium/2+LU_High)) +
   geom_sf(color=NA)
 ggplot(patches, aes(fill=LU_High)) +
   geom_sf(colour=NA)
+
+# Note: we have an NA index which is the impassable areas, for plotting:
+ggplot(patches %>% filter(is.na(Index))) + geom_sf()
+
+
+## 4) Generate neighbours:
+
+neighbours <- generate_neighbours(patches, calculate_border=FALSE)
+# or:
+neighbours <- generate_neighbours(patches, calculate_border=TRUE)
+
+
+## 5) Generate network representation (igraph):
+
+library("igraph")
+
+graph <-
+  graph_from_data_frame(
+    neighbours,
+    directed = TRUE,
+    vertices = patches %>%
+      as_tibble() %>%
+      filter(!is.na(Index)) %>%  # Remove the fake index for impassable areas
+      select(Index, centroid, hex_centroid, area, lu_sum, starts_with("LU"))
+  )
+
+
+## 6) Calculate pairwise distances and directions:
+
+distances <- shortest.paths(graph)
+distances[1:10,1:10]
+
+
+
+library("tidyverse")
+
+pdat <- patches %>%
+  arrange(Index) %>%
+  mutate(Distance = distances[sample(1:nrow(distances), 1), ])
+
+ggplot(pdat, aes(fill=Distance)) +
+  geom_sf()
+
+# Nodes that are not connected have Distance Inf (e.g. on islands):
+pdat %>% filter(Distance == Inf)
+
 
