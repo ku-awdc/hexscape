@@ -176,20 +176,25 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     }
 
     cat("Intersecting land use with the landscape...\n")
+
     levels(land_use$Category) %>%
       str_subset(fixed("Impassable"), negate=TRUE) %>%
       `names<-`(.,.) %>%
       as.list() %>%
-      pblapply(function(category)
-        land_use %>%
+      pblapply(function(category){
+        comb <- land_use %>%
           filter(Category == category) %>%
           st_union() %>%
           st_intersection(landscape) %>%
+          ## Sometimes we get points - remove these:
+          st_collection_extract("POLYGON") %>%
+          ## TODO: purrr::quietly
+          st_union() %>%
           ms_simplify(keep=simplify_keep, keep_shapes=TRUE, explode=TRUE, method="dp") %>%
           ## st_buffer with dist=0 resolves any self intersections:
           st_buffer(dist=0) %>%
           st_union()
-      ) ->
+      }) ->
       relevant_land
 
     # ggplot(relevant_land[[2]]) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
@@ -316,8 +321,12 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     select(Index, row, col, centroid, hex_centroid, area, lu_sum=area_sum, starts_with("LU"), geometry) ->
     patches
 
+  st_crs(patches$centroid) <- st_crs(patches$geometry)
+  st_crs(patches$hex_centroid) <- st_crs(patches$geometry)
+
   class(patches) <- c("patches", class(patches))
   attr(patches, "hex_width") <- hex_width
+  attr(patches, "min_prop") <- min_prop
 
   cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
 

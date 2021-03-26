@@ -99,7 +99,6 @@ land_use_summary_simp <- land_use_jutland %>%
 map_jutland <- map %>% filter(NUTS_ID %in% jutland_nuts)
 patches <- generate_patches(map_jutland, hex_width=2000, land_use=land_use_jutland)
 
-# Nearly all patches are mostly food or habitat:
 summary(patches$LU_Medium + patches$LU_High)
 
 ggplot(patches, aes(fill=LU_Medium/2+LU_High)) +
@@ -117,7 +116,8 @@ neighbours <- generate_neighbours(patches, calculate_border=FALSE)
 # or:
 neighbours <- generate_neighbours(patches, calculate_border=TRUE)
 
-
+neighbours <- neighbours %>%
+  filter(!is.na(Index), !is.na(Neighbour))
 ## 5) Generate network representation (igraph):
 
 library("igraph")
@@ -137,6 +137,64 @@ graph <-
 
 distances <- shortest.paths(graph)
 distances[1:10,1:10]
+
+save(patches, neighbours, distances, map_jutland, file="south_jutland_patches.rda")
+
+
+# TODO: cartesian angle between hex_centroids
+ind_cent <- patches %>%
+  filter(!is.na(Index)) %>%
+  mutate(hex_centroid = st_transform(hex_centroid, "WGS84")) %>%
+  # Extract Northing and Easting:
+  mutate(Longitude = st_coordinates(hex_centroid)[,1], Latitude = st_coordinates(hex_centroid)[,2]) %>%
+  as_tibble() %>%
+  select(Index, Easting=Longitude, Northing=Latitude)
+
+directions <- expand_grid(Index = ind_cent$Index, Neighbour = ind_cent$Index) %>%
+  mutate(IEast = ind_cent$Easting[Index], INorth = ind_cent$Northing[Index]) %>%
+  mutate(NEast = ind_cent$Easting[Neighbour], NNorth = ind_cent$Northing[Neighbour])
+
+
+directions <- expand_grid(Index = ind_cent$Index, Neighbour = ind_cent$Index) %>%
+  mutate(IEast = ind_cent$Easting[Index], INorth = ind_cent$Northing[Index]) %>%
+  mutate(NEast = ind_cent$Easting[Neighbour], NNorth = ind_cent$Northing[Neighbour]) %>%
+  mutate(dEast = IEast - NEast, dNorth = INorth - NNorth)
+
+
+angle <- geosphere::bearing(directions[c("INorth","IEast")], directions[c("NNorth","NEast")])
+r <- sample(nrow(directions),20)
+plot(directions[["dEast"]][r], directions[["dNorth"]][r], col="white")
+text(round(directions[["Angle"]][r]), x=directions[["dEast"]][r], y=directions[["dNorth"]][r])
+points(0,0)
+directions[r,]
+
+
+
+
+directions2 <- expand_grid(Index = ind_cent$Index, Neighbour = ind_cent$Index) %>%
+  mutate(IEast = ind_cent$Easting[Index], INorth = ind_cent$Northing[Index]) %>%
+  mutate(NEast = ind_cent$Easting[Neighbour], NNorth = ind_cent$Northing[Neighbour]) %>%
+  mutate(dEast = IEast - NEast, dNorth = INorth - NNorth) %>%
+
+  # https://www.igismap.com/formula-to-find-bearing-or-heading-angle-between-two-points-latitude-longitude/
+  mutate(X = cos(IEast) * sin(dNorth)) %>%
+  mutate(Y = cos(NEast) * sin(IEast) - sin(NEast) * cos(IEast) * cos(dNorth)) %>%
+  mutate(Angle = case_when(
+    Index == Neighbour ~ NA_real_,
+    TRUE ~ atan2(X, Y) * 180/pi
+  ))
+
+plot(directions2$Angle, angle)
+
+
+# Doesn't work:
+directions
+r <- sample(nrow(directions),20)
+plot(directions[["dEast"]][r], directions[["dNorth"]][r], col="white")
+text(round(directions[["Angle"]][r]), x=directions[["dEast"]][r], y=directions[["dNorth"]][r])
+points(0,0)
+directions[r,]
+
 
 
 

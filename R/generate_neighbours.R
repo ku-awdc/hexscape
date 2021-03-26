@@ -25,6 +25,7 @@ generate_neighbours <- function(patches, calculate_border=FALSE, buffer_dist=0.0
   hexlth <- hexhgt/2
   # Max area:
   hexarea <- sqrt(3)*hexwth^2/2
+  min_prop <- attr(patches, "min_prop", TRUE)
 
   stopifnot(is.numeric(buffer_dist) && length(buffer_dist)==1 && buffer_dist > 0)
 

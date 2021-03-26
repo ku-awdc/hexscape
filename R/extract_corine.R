@@ -3,7 +3,7 @@
 #' @param country_code
 #' @param nuts_year
 #'
-#' @importFrom pbapply pblapply
+#' @importFrom pbapply pblapply pbsapply
 #' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection
 #'
 #' @export
