@@ -12,12 +12,17 @@ set_storage_folder("~/Documents/Resources/Datasets/HexScape")
 ## 2) Process and cache corine data for Denmark:
 
 # Downloads and caches high res map of DK:
-map_dk <- extract_map("DK")
-map_ee <- extract_map("EE")
+map <- extract_map("DK")
 # Processes raw corine data and saves processed_data/corine_DK.rds
-land_use_dk <- extract_corine("DK", verbose=2L)
-land_use_ee <- extract_corine("EE", verbose=2L)
+land_use <- extract_corine("DK", verbose=2L)
 # Note: the second time these are run they load cached data
+
+# Plot of land use types in Jutland:
+jutland_nuts <- c("DK032","DK041","DK042","DK050")
+theme_set(theme_light())
+ggplot() +
+  geom_sf(data=map %>% filter(NUTS_ID %in% jutland_nuts)) +
+  geom_sf(data=land_use %>% filter(NUTS_ID %in% jutland_nuts), mapping=aes(fill=CLC_LABEL1, col=CLC_LABEL1))
 
 ## 3) Group and summarise corine data for Jutland
 
@@ -42,38 +47,74 @@ clc <- extract_clc() %>%
   arrange(Category, CLC_CODE)
 stopifnot(all(!is.na(clc$Category)))
 
-land_use_denmark <- land_use_dk %>%
+## Check it is sensible:
+clc %>% print(n=Inf)
+
+land_use_summary <- land_use %>%
+  filter(NUTS_ID %in% jutland_nuts) %>%
+  as_tibble() %>%
+  left_join(clc %>% select(CLC_CODE, Category), by="CLC_CODE") %>%
+  group_by(Category, CLC_CODE, CLC_LABEL1, CLC_LABEL2, CLC_LABEL3) %>%
+  summarise(area = sum(as.numeric(sf::st_area(Shape))), areaHA=sum(AREA_HA), .groups="drop") %>%
+  arrange(desc(area)) %>%
+  mutate(prop = round(area / sum(area), 3)) %>%
+  mutate(Category2 = Category)
+
+land_use_jutland <- land_use %>%
+  filter(NUTS_ID %in% jutland_nuts) %>%
+  # filter(NUTS_ID %in% "DK032") %>%
   left_join(clc %>% select(CLC_CODE, Category), by="CLC_CODE") %>%
   filter(CLC_LABEL1 != "Unknown") %>%
   group_by(Category) %>%
   summarise(AREA_HA = sum(AREA_HA), Shape = sf::st_union(Shape), .groups="drop")
 
-land_use_estonia <- land_use_ee %>%
-  left_join(clc %>% select(CLC_CODE, Category), by="CLC_CODE") %>%
-  filter(CLC_LABEL1 != "Unknown") %>%
-  group_by(Category) %>%
-  summarise(AREA_HA = sum(AREA_HA), Shape = sf::st_union(Shape), .groups="drop")
+## This is too detailed:
+ptf <- ggplot(land_use_jutland, aes(col=Category, fill=Category)) + geom_sf()
+# Don't even try:
+# pt
+ptf + coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
+ptf + coord_sf(xlim=c(520000, 530000), ylim=c(6120000, 6130000), crs= 25832, datum=sf::st_crs(25832))
+
 
 # Simplify land use boundaries for computational reasons:
-land_use_denmark <- land_use_denmark %>%
+land_use_jutland <- land_use_jutland %>%
   rmapshaper::ms_simplify(keep=0.25, keep_shapes=TRUE, explode=TRUE, method="dp")
-land_use_estonia <- land_use_estonia %>%
-  rmapshaper::ms_simplify(keep=0.25, keep_shapes=TRUE, explode=TRUE, method="dp")
+pt <- ggplot(land_use_jutland, aes(col=Category, fill=Category)) + geom_sf()
+pt + coord_sf(crs= 25832, datum=sf::st_crs(25832))
+pt + coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
+pt + coord_sf(xlim=c(520000, 530000), ylim=c(6120000, 6130000), crs= 25832, datum=sf::st_crs(25832))
+
+land_use_summary_simp <- land_use_jutland %>%
+  as_tibble() %>%
+  group_by(Category) %>%
+  summarise(area = sum(as.numeric(sf::st_area(Shape))), areaHA=sum(AREA_HA), .groups="drop") %>%
+  arrange(desc(area)) %>%
+  mutate(prop = round(area / sum(area), 3)) %>%
+  mutate(Category2 = Category)
+
 
 ## 3) Generate hexagon patches from this map:
-patches_dk <- generate_patches(map_dk, hex_width=2000, land_use=land_use_denmark)
-patches_ee <- generate_patches(map_ee, hex_width=2000, land_use=land_use_estonia)
+
+# map_jutland <- map %>% filter(NUTS_ID %in% "DK032") # South Jutland only
+map_jutland <- map %>% filter(NUTS_ID %in% jutland_nuts)
+patches <- generate_patches(map_jutland, hex_width=2000, land_use=land_use_jutland)
+
+summary(patches$LU_Medium + patches$LU_High)
+
+ggplot(patches, aes(fill=LU_Medium/2+LU_High)) +
+  geom_sf(color=NA)
+ggplot(patches, aes(fill=LU_High)) +
+  geom_sf(colour=NA)
+
+# Note: we have an NA index which is the impassable areas, for plotting:
+ggplot(patches %>% filter(is.na(Index))) + geom_sf()
+
 
 ## 4) Generate neighbours:
 
-neighbours_dk <- generate_neighbours(patches_dk, calculate_border=TRUE)
-neighbours_ee <- generate_neighbours(patches_ee, calculate_border=TRUE)
-
-save(patches_dk, neighbours_dk, map_dk, file="patches_denmark.rda")
-save(patches_ee, neighbours_ee, map_ee, file="patches_estonia.rda")
-
-stop()
-
+neighbours <- generate_neighbours(patches, calculate_border=FALSE)
+# or:
+neighbours <- generate_neighbours(patches, calculate_border=TRUE)
 
 neighbours <- neighbours %>%
   filter(!is.na(Index), !is.na(Neighbour))
