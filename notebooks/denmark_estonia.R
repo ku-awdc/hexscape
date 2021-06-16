@@ -19,7 +19,7 @@ land_use_dk <- extract_corine("DK", verbose=2L)
 land_use_ee <- extract_corine("EE", verbose=2L)
 # Note: the second time these are run they load cached data
 
-## 3) Group and summarise corine data for Jutland
+## 3) Group and summarise corine data
 
 clc <- extract_clc() %>%
   mutate(Category = case_when(
@@ -62,14 +62,15 @@ land_use_estonia <- land_use_estonia %>%
 
 ## 3) Generate hexagon patches from this map:
 patches_dk <- generate_patches(map_dk, hex_width=2000, land_use=land_use_denmark)
+neighbours_dk <- generate_neighbours(patches_dk, calculate_border=TRUE)
+save(patches_dk, neighbours_dk, map_dk, file="patches/patches_denmark.rda")
+
 patches_ee <- generate_patches(map_ee, hex_width=2000, land_use=land_use_estonia)
 
 ## 4) Generate neighbours:
 
-neighbours_dk <- generate_neighbours(patches_dk, calculate_border=TRUE)
 neighbours_ee <- generate_neighbours(patches_ee, calculate_border=TRUE)
 
-save(patches_dk, neighbours_dk, map_dk, file="patches_denmark.rda")
 save(patches_ee, neighbours_ee, map_ee, file="patches_estonia.rda")
 
 stop()
