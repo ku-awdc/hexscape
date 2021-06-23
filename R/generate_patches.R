@@ -284,7 +284,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     ## Where areasum is zero attribute it all to passable:
     patches %>%
       mutate(LU_Passable = case_when(
-        area_sum < sqrt(.Machine$double.eps) ~ 1.0,
+        area_sum < sqrt(.Machine$double.eps) ~ 1.0 - (LU_Low + LU_Medium + LU_High),
         TRUE ~ LU_Passable
       )) ->
       patches
@@ -296,10 +296,10 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
       select(starts_with("LU")) %>%
       as.matrix() %>%
       apply(1,sum)
-    browser()
-    if(!all.equal(rep(1.0,length(checksum)), checksum)) browser()
-    #stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
 
+    # TODO: remove browser here
+    if(!isTRUE(all.equal(rep(1.0,length(checksum)), checksum))) browser()
+    stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
 
     if(FALSE){
     ggplot(patches, aes(fill=LU_Passable)) + geom_sf()
