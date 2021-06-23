@@ -157,7 +157,6 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
 
   ## Then loop over the Category types to get areas for each patch:
   if(use_categories){
-    cat("Determining land use summaries...\n")
 
     ## TODO: break up into batches of <=100 just to get a progress bar
     make_chunks <- function(x, max_per_chunk=100L){
@@ -285,7 +284,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     ## Where areasum is zero attribute it all to passable:
     patches %>%
       mutate(LU_Passable = case_when(
-        area_sum < sqrt(.Machine$double.eps) ~ 1.0,
+        area_sum < sqrt(.Machine$double.eps) ~ 1.0 - (LU_Low + LU_Medium + LU_High),
         TRUE ~ LU_Passable
       )) ->
       patches
@@ -297,8 +296,10 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
       select(starts_with("LU")) %>%
       as.matrix() %>%
       apply(1,sum)
-    stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
 
+    # TODO: remove browser here
+    if(!isTRUE(all.equal(rep(1.0,length(checksum)), checksum))) browser()
+    stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
 
     if(FALSE){
     ggplot(patches, aes(fill=LU_Passable)) + geom_sf()
