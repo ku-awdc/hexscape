@@ -100,6 +100,7 @@ distances[1:10,1:10]
 
 save(patches, neighbours, distances, map_jutland, file="south_jutland_patches.rda")
 
+ggplot(patches_dk %>% filter(!is.na(Index)), aes(fill=LU_High*4 + LU_Medium*2 + LU_Low, col=LU_High*4 + LU_Medium*2 + LU_Low)) + geom_sf(lwd=0) + theme(legend.title = element_blank()) + geom_sf(fill="grey", col="grey", data=patches_dk %>% filter(is.na(Index)), lwd=0)
 
 # TODO: cartesian angle between hex_centroids
 ind_cent <- patches %>%
