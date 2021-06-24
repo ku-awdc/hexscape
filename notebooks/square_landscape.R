@@ -29,11 +29,25 @@ ggplot(landscape) + geom_sf()
 patches <- generate_patches(landscape, hex_width=1)
 ggplot(patches) + geom_sf()
 
+#'
+#'
+patches %>%
+  mutate(carrying_capacity = runif(n(), 7, 48)) ->
+  patches
+
+ggplot(patches) +
+  geom_sf(aes(fill = factor(carrying_capacity)),
+          show.legend = FALSE) +
+  scale_fill_viridis_d()
+
+
 
 ## Calculate neighbours:
 neighbours <- generate_neighbours(patches)
 neighbours
 
+
+
 ## So if we are currently at Index number 431 then we have 3 neighbours but only 1 with a big border:
-ggplot(patches) + aes(col=Index==431) + geom_sf()
+ggplot(patches) + aes(col=Index==431, fill=Index==431) + geom_sf()
 neighbours %>% filter(Index==431)
