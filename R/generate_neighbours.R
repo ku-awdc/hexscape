@@ -8,7 +8,7 @@
 #' @export
 #'
 #' @examples
-generate_neighbours <- function(patches, calculate_border=FALSE, buffer_dist=0.001*hex_width){
+generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.001*hex_width){
 
   st <- Sys.time()
 
@@ -116,6 +116,7 @@ generate_neighbours <- function(patches, calculate_border=FALSE, buffer_dist=0.0
           ### DEMO CODE:
 
           # Adjust for the buffer distance:
+          intsct <- st_intersection(x$geometry, x$nb_geometry)
           area <- as.numeric(st_area(intsct), units="m")
           bdr <- (area - (buffer_dist*2)) / (buffer_dist*2)
 
@@ -132,7 +133,8 @@ generate_neighbours <- function(patches, calculate_border=FALSE, buffer_dist=0.0
         })
 
     neighbours_incomplete_area %>%
-      mutate(Border = (as.numeric(Intsct, units="m") - (buffer_dist*2)) / (buffer_dist*2)) %>%
+#      mutate(Border = (as.numeric(Intsct, units="m") - (buffer_dist*2)) / (buffer_dist*2)) %>%
+      mutate(Border = (as.numeric(Intsct, units="m")) / (buffer_dist*2)) %>%
       filter(!is.na(Border)) %>%
       select(-Intsct) %>%
       bind_rows(neighbours_complete_area) %>%

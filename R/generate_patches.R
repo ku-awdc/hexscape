@@ -113,7 +113,10 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     # ggplot(st_simplify(impassable)) + geom_sf()+ coord_sf(xlim=c(520000, 530000), ylim=c(6120000, 6130000), crs= 25832, datum=sf::st_crs(25832))
 
     pblapply(seq_len(nrow(patches)), function(i){
-      suppressWarnings(st_cast(st_difference(patches[i,], impassable), to="POLYGON"))
+		ss <- try({
+			suppressWarnings(st_cast(st_difference(patches[i,], impassable), to="POLYGON"))
+		})
+		if(inherits(ss,"try-error")) browser()
       # NB: using st_difference allows categories to have lower resolution than the landscape
     }) ->
     patches
@@ -129,8 +132,8 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
 
   }else{
   ## Otherwise just cast the patches to polygon:
-    pblapply(seq_len(nrow(patches)), function(i){
-      suppressWarnings(st_cast(patches[i,], to="POLYGON"))
+    pblapply(seq_len(nrow(patches)), function(i){      
+		suppressWarnings(st_cast(st_buffer(patches[i,], 0.0), to="POLYGON"))
     }) ->
     patches
   }
@@ -259,7 +262,6 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
 
     }
 
-
     patch_land_use %>%
       group_by(Index) %>%
       mutate(area_sum = sum(area), proportion = area / area_sum) %>%
@@ -313,6 +315,9 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
 
     plot(ecdf(patches$LU_Passable))
     }
+  }else{
+	  ## Add area_sum for equivalence with other code:
+	  patches <- patches %>% mutate(area_sum = area)
   }
 
   ## Finally re-calculate the centroids:
