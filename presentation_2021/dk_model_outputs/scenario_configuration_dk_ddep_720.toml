@@ -1,0 +1,37 @@
+name = 'dk_ddep_720'
+model = 'ProcessOriented'
+max_timesteps = 9100
+seed_iteration = 0
+max_iterations = 1
+mortality_mode = 'Original'
+common_survival_probability = 0.001
+piglet_mortality = 0.001
+juvenile_mortality = 0.001
+adult_mortality = 0.001
+maximal_mortality = 0.1
+cutoff_probability = 0.5
+upper_ratio_carrying_capacity = 5.0
+breeding_success = 1.0
+carrying_capacity = 25
+breeding_capacity_ratio = 0.35
+patch_to_seed_population = 439
+
+[initial_demographics]
+female_piglets = 15
+male_piglets = 13
+female_juveniles = 8
+male_juveniles = 6
+sows = 40
+boars = 40
+
+[disease_configuration]
+time_to_seed_infection = 720
+frequency_infection = 0.01
+density_dependent_infection = 0.2
+recovery = 0.2
+
+[death_configuration]
+amplitude = 0.6931471805599453
+phase = 1.2
+seasonality = true
+density_dependence = true
