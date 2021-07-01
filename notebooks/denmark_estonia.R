@@ -78,25 +78,24 @@ stop()
 
 neighbours <- neighbours %>%
   filter(!is.na(Index), !is.na(Neighbour))
-## 5) Generate network representation (igraph):
+
+## 5) Generate network representation (igraph) and pairwise distances
 
 library("igraph")
 
 graph <-
   graph_from_data_frame(
-    neighbours,
+    neighbours_dk,
     directed = TRUE,
-    vertices = patches %>%
+    vertices = patches_dk %>%
       as_tibble() %>%
       filter(!is.na(Index)) %>%  # Remove the fake index for impassable areas
       select(Index, centroid, hex_centroid, area, lu_sum, starts_with("LU"))
   )
 
-
-## 6) Calculate pairwise distances and directions:
-
 distances <- shortest.paths(graph)
 distances[1:10,1:10]
+
 
 save(patches, neighbours, distances, map_jutland, file="south_jutland_patches.rda")
 
