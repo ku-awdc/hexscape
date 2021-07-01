@@ -2,6 +2,8 @@ library("HexScape")
 library("tidyverse")
 library("sf")
 
+set.seed(20210629)
+
 ## Let's start with a square 50x50km landscape:
 xrange <- c(0, 50)
 yrange <- c(0, 50)
@@ -47,7 +49,13 @@ patches %>%
 neighbours %>%
   write_delim("../rust_asf/dataset/neighbours_square.csv", delim = ";")
 #'
-#'
+
+square_patches <- patches
+square_neighbours <- neighbours
+
+save(square_patches, square_neighbours, file = "../rust_asf/dataset/square_spatial_map.rds",
+     compress = FALSE)
+
 #'
 #'
 ## We could also make it more interesting:
@@ -96,7 +104,17 @@ patches %>%
 
 neighbours %>%
   write_delim("../rust_asf/dataset/neighbours_square_punctured.csv", delim = ";")
+#'
+#'
 
+
+punctured_patches <- patches
+punctured_neighbours <- neighbours
+
+save(punctured_patches, punctured_neighbours,
+     file = "../rust_asf/dataset/punctured_spatial_map.rds",
+     compress = FALSE)
+#'
 ## So if we are currently at Index number 431 then we have 3 neighbours but only 1 with a big border:
 ggplot(patches) + aes(col=Index==431, fill=Index==431) + geom_sf()
 neighbours %>% filter(Index==431)
