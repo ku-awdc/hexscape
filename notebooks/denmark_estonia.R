@@ -82,35 +82,28 @@ stop()
 neighbours <- neighbours %>%
   #' remove the neighbours with an invalid / kitchen-sink index
   filter(!is.na(Index), !is.na(Neighbour))
-#' ## 5) Generate network representation (igraph):
-#'
-#'
+
+## 5) Generate network representation (igraph) and pairwise distances
+
 library("igraph")
 #'
 #'
 #'
 graph <-
   graph_from_data_frame(
-    neighbours,
+    neighbours_dk,
     directed = TRUE,
-    vertices = patches %>%
+    vertices = patches_dk %>%
       as_tibble() %>%
       filter(!is.na(Index)) %>%  # Remove the fake index for impassable areas
       select(Index, centroid, hex_centroid, area, lu_sum, starts_with("LU"))
   )
-#'
-#'
-#'
-#'
-#' ## 6) Calculate pairwise distances and directions:
-#'
-#'
 distances <- shortest.paths(graph)
 # DEBUG:
 # distances[1:10,1:10]
 
-#' Save these for now..
-save(patches, neighbours, distances, map_jutland, file = "south_jutland_patches.rda")
+
+save(patches, neighbours, distances, map_jutland, file="south_jutland_patches.rda")
 
 ggplot(patches_dk %>% filter(!is.na(Index)), aes(fill=LU_High*4 + LU_Medium*2 + LU_Low, col=LU_High*4 + LU_Medium*2 + LU_Low)) + geom_sf(lwd=0) + theme(legend.title = element_blank()) + geom_sf(fill="grey", col="grey", data=patches_dk %>% filter(is.na(Index)), lwd=0)
 
