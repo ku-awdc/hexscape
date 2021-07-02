@@ -107,6 +107,7 @@ pblapply(plotdata, function(x){
     ## Comment out this line to remove ASF dots:
     geom_sf(data=asfpts, aes(geometry=centroid), col="red", fill="red", pch=20, size=asf_size, alpha=asf_alpha) +
     ggtitle(str_c("Animals after ", x$Year[1], ifelse(x$Year[1]==1, " year", " years"))) +
+    theme(legend.pos="none") +
     scale_colour_gradient(limits = c(0, maxobs), low = grad[1], high = grad[2]) +
     scale_fill_gradient(limits = c(0, maxobs), low = grad[1], high = grad[2])
   pt
