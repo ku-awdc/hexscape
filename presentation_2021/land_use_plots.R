@@ -47,6 +47,15 @@ if(FALSE){
   save(gmap_dk, land_use_dk, file="presentation_2021/gmap_dk.rda")
 }
 (load("presentation_2021/gmap_dk.rda"))
+(load("patches/patches_denmark.rda"))
+
+
+simdatafile <- "presentation_2021/dk_model_outputs/disease_progression_per_patch_dk_ddep_20_ProcessOriented.csv"
+simulation <- read_csv2(simdatafile)
+ccdata <- simulation %>%
+  group_by(Index = patch_id, cc) %>%
+  summarise(.groups="drop") %>%
+  left_join(patches_dk, by="Index")
 
 
 
