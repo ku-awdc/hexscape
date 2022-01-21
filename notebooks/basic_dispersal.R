@@ -55,13 +55,13 @@ curve(pweibull(x, settle_rho, settle_scale), from=0, to=100)
 # Convert from displacement to distance (number of movements) by accounting for directional probabilities and hexagon width:
 settle_mean_dist <- settle_mean_disp / (
 					dir_probs["forward"]*hexwth*1 +
-					dir_probs["f_right"]*hexwth*0.5 + 
-					dir_probs["f_left"]*hexwth*0.5 + 
-					dir_probs["b_right"]*hexwth*-0.5 + 
-					dir_probs["b_left"]*hexwth*-0.5 + 
+					dir_probs["f_right"]*hexwth*0.5 +
+					dir_probs["f_left"]*hexwth*0.5 +
+					dir_probs["b_right"]*hexwth*-0.5 +
+					dir_probs["b_left"]*hexwth*-0.5 +
 					dir_probs["backward"]*hexwth*-1
 					) |> as.numeric()
-# Convert to intercept on the hazard scale:					
+# Convert to intercept on the hazard scale:
 settle_intercept <- (log(settle_mean_dist) - log(gamma(1 + 1/settle_rho))) * -settle_rho
 # So this is what the settling hazard looks like:
 movements <- 1:100
@@ -124,7 +124,7 @@ migrate_fun <- function(plot=TRUE){
 		slice_sample(n=1, weight_by=Probs) |>
 		pull(Direction) ->
 	direction
-	
+
 	# Then we align the directional probabilities with this direction:
 	(function(x){
 		# (This code is horrible)
@@ -136,7 +136,7 @@ migrate_fun <- function(plot=TRUE){
 		return(move_probs)
 	})(direction) ->
 	move_probs
-	
+
 	# Then loop over possible movements:
 	current_patch <- start_patch
 	n_moves <- 0
@@ -154,37 +154,46 @@ migrate_fun <- function(plot=TRUE){
 		# Evaluate our new neighbourhood area:
 		patches |>
 			filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
-		neighbourhood 
-		
+		neighbourhood
+
 		# Determine if we want to settle in this area
 		## NEW LOGIC: we could settle either here or in a neighbouring patch
 		# Note that movements are discrete so we need to integrate:
-		integrate(\(m) settle_rho * m^(settle_rho-1) * exp(settle_intercept), n_moves, n_moves+1)[["value"]] |>
-			p => rbinom(1, 1, p) ->
-		settling
+		cc_effect <- 0 # Could be max breeding capacity of neighbours$BreedingCapacity
+		# cc_effect should be negative
+		survival_regression <- settle_intercept + cc_effect
+
+		## Correct:
+		1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho)) |>
+		  p => rbinom(1, 1, p) ->
+		  settling
+		# Equal:
+		# 1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho))
+		# 1 - exp(-integrate(\(m) settle_rho * m^(settle_rho-1) * exp(survival_regression), n_moves, n_moves+1)[["value"]])
+
 		## TODO: there is probably a better way of doing this using the cumulative hazard?
 		## TODO: account for carrying capacities of this and surrounding patches
-		
+
 		n_moves <- n_moves+1
 		if(length(history)<n_moves) length(history) <- length(history)*2
 		history[n_moves] <- current_patch
-		
+
 		if(!settling){
 			next
 		}
-		
+
 		# If settling then determine where in this area to settle:
 		neighbourhood |>
 			slice_sample(n=1) ->
 		final_patch
 		# TODO: this should be based on carrying capacity
-		
+
 		history[n_moves+1] <- final_patch[["Index"]]
 		break
 	}
-	
+
 	history <- history |> na.omit() |> as.numeric()
-	
+
 	if(plot){
 		patches |>
 			mutate(Visited = case_when(
@@ -194,9 +203,9 @@ migrate_fun <- function(plot=TRUE){
 				TRUE ~ "NotVisited"
 			)) ->
 		tpatches
-		
+
 		labs <- arrange(patches, Index)[history,] |> mutate(Label = 1:n())
-		
+
 		{
 			ggplot(tpatches) +
 			geom_sf(aes(geometry=geometry, fill=Visited)) +
@@ -205,10 +214,13 @@ migrate_fun <- function(plot=TRUE){
 			ggtitle(str_c("Direction: ", as.character(direction)))
 		} |> print()
 	}
-		
-	
+
+
 	return(list(history=history, direction=as.character(direction)))
 }
+
+dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
+settle_intercept <- -2
 
 migrate_fun()
 
