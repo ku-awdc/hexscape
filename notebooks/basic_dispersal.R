@@ -8,8 +8,9 @@
 # Animals don't stop if breeding capacity = 0
 # Less likely to stop if there is insufficient breeding space
 
-library("HexScape")
-library("sf")
+library(HexScape)
+library(sf)
+library(magrittr)
 
 # Did you know about this?
 Sys.setenv(`_R_USE_PIPEBIND_` = TRUE)
@@ -33,26 +34,29 @@ dir_probs <- c(forward=0.35, f_right=0.2, b_right=0.1, backward=0.05, b_left=0.1
 dir_probs |> sum() |> (\(x) stopifnot(x==1))()
 # So maybe the magrittr pipe is not yet dead...
 dir_probs |> sum() %>% `==`(1) %>% stopifnot()
-# Or maybe there is a more pipe-friendly way of doing this e.g. assertive package?!?
+dir_probs %>% sum() %>% `==`(1) %>% stopifnot()
+# Or maybe there is a more pipe-friendly 
+# way of doing this e.g. assertive package?!?
 
 ## Back to the real problem...
 
-# Width of hexagons:
+#' Width of hexagons:
 hexwth <- 2
 
 
-## Settling hazard
+#' ## Settling hazard
 
-# This controls the rate at which the settling hazard changes with distance - >1=increasing, <1=decreasing, 1=constant
+#' This controls the rate at which the settling hazard changes with distance - >1=increasing, <1=decreasing, 1=constant
 settle_rho <- 1.5
-# The mean settling displacement in km:
+#' The mean settling displacement in km:
 settle_mean_disp <- 10
-# What this looks like as a distribution:
+#' What this looks like as a distribution:
 settle_scale <- settle_mean_disp / gamma(1 + 1/settle_rho)
 curve(dweibull(x, settle_rho, settle_scale), from=0, to=100)
 curve(pweibull(x, settle_rho, settle_scale), from=0, to=100)
 
-# Convert from displacement to distance (number of movements) by accounting for directional probabilities and hexagon width:
+#' Convert from displacement to distance (number of movements) by accounting for
+#' directional probabilities and hexagon width:
 settle_mean_dist <- settle_mean_disp / (
 					dir_probs["forward"]*hexwth*1 +
 					dir_probs["f_right"]*hexwth*0.5 + 
@@ -75,7 +79,6 @@ plot(movements, settle_hazard, type="l")
 
 ## TODO: mortality hazard
 # Should have a similar shape to the settling hazard I guess
-
 
 ## Generate a homogenous landscape:
 xrange <- c(0, 50)
