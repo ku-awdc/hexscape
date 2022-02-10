@@ -15,15 +15,22 @@ library(magrittr)
 # Did you know about this?
 Sys.setenv(`_R_USE_PIPEBIND_` = TRUE)
 # Which enables:
-data.frame(x=1:10, y=rnorm(10)) |> d => lm(y ~ x, data=d)
+data.frame(x = 1:10, y = rnorm(10)) |> d => lm(y ~ x, data = d)
 # Rather than the much uglier syntax:
-data.frame(x=1:10, y=rnorm(10)) |> (\(d) lm(y ~ x, data=d))()
-
+data.frame(x = 1:10, y = rnorm(10)) |> (\(d) lm(y ~ x, data = d))()
 
 ## Parameters
 
 # Directional probabilities:
-dir_probs <- c(forward=0.35, f_right=0.2, b_right=0.1, backward=0.05, b_left=0.1, f_left=0.2)
+dir_probs <-
+  c(
+    forward = 0.35,
+    f_right = 0.2,
+    b_right = 0.1,
+    backward = 0.05,
+    b_left = 0.1,
+    f_left = 0.2
+  )
 
 ## Side-note:
 # This doesn't work for this use case :(
@@ -31,11 +38,11 @@ dir_probs <- c(forward=0.35, f_right=0.2, b_right=0.1, backward=0.05, b_left=0.1
 # Or this:
 # dir_probs |> sum() |> `==`(1) |> stopifnot()
 # And this is ugly:
-dir_probs |> sum() |> (\(x) stopifnot(x==1))()
+dir_probs |> sum() |> (\(x) stopifnot(x == 1))()
 # So maybe the magrittr pipe is not yet dead...
 dir_probs |> sum() %>% `==`(1) %>% stopifnot()
 dir_probs %>% sum() %>% `==`(1) %>% stopifnot()
-# Or maybe there is a more pipe-friendly 
+# Or maybe there is a more pipe-friendly
 # way of doing this e.g. assertive package?!?
 
 ## Back to the real problem...
@@ -52,19 +59,19 @@ settle_rho <- 1.5
 settle_mean_disp <- 10
 #' What this looks like as a distribution:
 settle_scale <- settle_mean_disp / gamma(1 + 1/settle_rho)
-curve(dweibull(x, settle_rho, settle_scale), from=0, to=100)
-curve(pweibull(x, settle_rho, settle_scale), from=0, to=100)
+curve(dweibull(x, settle_rho, settle_scale), from = 0, to = 100)
+curve(pweibull(x, settle_rho, settle_scale), from = 0, to = 100)
 
 #' Convert from displacement to distance (number of movements) by accounting for
 #' directional probabilities and hexagon width:
 settle_mean_dist <- settle_mean_disp / (
-					dir_probs["forward"]*hexwth*1 +
-					dir_probs["f_right"]*hexwth*0.5 +
-					dir_probs["f_left"]*hexwth*0.5 +
-					dir_probs["b_right"]*hexwth*-0.5 +
-					dir_probs["b_left"]*hexwth*-0.5 +
-					dir_probs["backward"]*hexwth*-1
-					) |> as.numeric()
+  dir_probs["forward"]    * hexwth * 1 +
+    dir_probs["f_right"]  * hexwth * 0.5 +
+    dir_probs["f_left"]   * hexwth * 0.5 +
+    dir_probs["b_right"]  * hexwth * -0.5 +
+    dir_probs["b_left"]   * hexwth * -0.5 +
+    dir_probs["backward"] * hexwth * -1
+) |> as.numeric()
 # Convert to intercept on the hazard scale:
 settle_intercept <- (log(settle_mean_dist) - log(gamma(1 + 1/settle_rho))) * -settle_rho
 # So this is what the settling hazard looks like:
@@ -80,38 +87,168 @@ plot(movements, settle_hazard, type="l")
 ## TODO: mortality hazard
 # Should have a similar shape to the settling hazard I guess
 
-## Generate a homogenous landscape:
-xrange <- c(0, 50)
-yrange <- c(0, 50)
+## Generate a homogeneous landscape:
+xrange <- c(0, 10)
+yrange <- c(0, 10)
 corners <- tribble(~x, ~y,
-					xrange[1], yrange[1],
-					xrange[2], yrange[1],
-					xrange[2], yrange[2],
-					xrange[1], yrange[2],
-					xrange[1], yrange[1]
-					)
+                   xrange[1], yrange[1],
+                   xrange[2], yrange[1],
+                   xrange[2], yrange[2],
+                   xrange[1], yrange[2],
+                   xrange[1], yrange[1]
+)
 landscape <- st_sfc(st_multipolygon(list(list(as.matrix(corners)))))
-
-patches <- generate_patches(landscape, hex_width=hexwth) |>
-	mutate(BreedingCapacity = floor(5*area))
-neighbours <- generate_neighbours(patches, calculate_border=TRUE) %>%
-	left_join(patches |> as_tibble() |> select(Neighbour=Index, NeighbourCapacity=BreedingCapacity), by="Neighbour")
-
-# Identify the central patch:
-patches |>
-	as_tibble() |>
-	arrange(abs(row-mean(row)), abs(col-mean(col))) |>
-	slice(1) |>
-	mutate(Central=TRUE) |>
-	select(Index, Central) |>
-	right_join(patches, by="Index") |>
-	replace_na(list(Central=FALSE)) |>
-	identity() ->
+#'
+landscape %>%
+  plot()
+#'
+library(tmap)
+patches <- generate_patches(landscape, hex_width = hexwth) |>
+  mutate(BreedingCapacity = floor(5 * area))
 patches
 
+# tm_shape(patches) +
+#   tm_polygons()
+#
+# tm_shape(patches) +
+#   tm_polygons("BreedingCapacity")
+patches %>%
+  mutate(row_col = str_c("(", row, ", ", col,")")) %>%
+  # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
+  tm_shape() +
+  tm_polygons() +
+  # tm_text("row", size = .5)
+  tm_text("row_col", size = 1)
+#'
+#' These two quantities should match. Going counter-clockwise.
+reorder_direction <- . %>% fct_relevel("E", "NE", "NW", "W", "SW", "SE")
+default_weight <- c(
+    "forward",
+    "f_left",
+    "b_left",
+    "backward",
+    "b_right",
+    "f_right")
+#'
+#' Henceforth we'll assume "forward" to point to `E` (East) by default.
+#' And we'll go counter-clockwise in ordering.
+neighbour_indices <- function(row, col) {
+  tribble(
+    ~direction, ~row_offset, ~col_offset,
+    "E",   0, +1,
+    "NE", +1, +row %% 2 <= 0.5,
+    "NW", +1, -(row %% 2 > 0.5),
+    "W",   0, -1,
+    "SW", -1, -(row %% 2 > 0.5),
+    "SE", -1, row %% 2 <= 0.5) %>%
+    mutate(
+      row = row + row_offset,
+      col = col + col_offset,
+      direction = direction %>% reorder_direction())
+}
+#'
+neighbour_indices(0, 0) %>%
+  filter(row >= 0, col >= 0)
+neighbour_indices(1, 1)
+neighbour_indices(2, 2)
+neighbour_indices(3, 3)
+neighbour_indices(3, 2)
+
+#'
+
+neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
+  left_join(
+    patches |> as_tibble() |>
+      select(Neighbour = Index, NeighbourCapacity = BreedingCapacity),
+    by = "Neighbour"
+  )
+#'
+#'
+neighbours %>%
+  rename(direction = Direction) %>%
+  # missing `row` and `col`
+  left_join(patches %>%
+              # remove geometry
+              as_tibble() %>% select(origin_row = row, origin_col = col, Index),
+            by = "Index") %>%
+  #' `Neighbour` is also an instance of `Index`
+  left_join(patches %>%
+              # remove geometry
+              as_tibble() %>% select(target_row = row, target_col = col, Index),
+            by = c("Neighbour" = "Index")) %>%
+  # arrange(row, col)
+  mutate(direction = direction %>% reorder_direction()) %>%
+  arrange(Index, direction) %>%
+  identity() ->
+  neigh_indices_groundtruth_df
+#'
+#'
+#' Can we infer the "right" indices? Let us construct something comparable to
+#' the above using `neighbour_indices` and inspect.
+patches %>%
+  # remove geometry
+  as_tibble() %>%
+  select(Index, origin_row = row, origin_col = col) %>%
+  mutate(neighbours = map2(origin_row, origin_col, neighbour_indices)) %>%
+  unnest(neighbours) %>%
+  rename(target_row = row, target_col = col) %>%
+  select(-contains("offset")) %>%
+
+  # ensure that the target neighbour is an index (row, col) that exists
+  filter(
+    map2_lgl(
+      target_row, target_col, ~ any((.x == patches$row) & (.y == patches$col))
+    )
+  ) %>%
+
+  # invalid indices is probably an issue..
+  # filter(target_row >= 0, target_col >= 0) %>%
+  # # a neighbour cannot exist if it doesn't exist...
+  # filter(max(origin_row) >= target_row,
+  #        max(origin_col) >= target_col) %>%
+  arrange(Index, direction) ->
+  neigh_indices_formula
+#'
+#'
+#'
+# VALIDATION
+# neigh_indices_groundtruth_df %>%
+#   select(Index, origin_row, origin_col, direction, target_row, target_col) %>%
+#   anti_join(x = neigh_indices_formula,
+#             suffix = c(".groundtruth", ".formula")) %>%
+#             # by = c("Index", "origin_row", "origin_col")) %>%
+#   # naniar::vis_miss() %>%
+#   print(n = 50) %>%
+#   # View() %>%
+#
+#   # left_join(patches %>% as_tibble() %>%
+#   #             select(Index, target_row = row, target_col = col),
+#   #           by = c("target_row","target_col")) %>%
+#
+#   identity()
+#'
+#'
+#'
+
+# VALIDATION
+# neigh_indices_formula %>%
+#   summarise(across(where(~!is.factor(.x)), max))
+#'
+# Identify the central patch:
+patches |>
+  as_tibble() |>
+  arrange(abs(row - mean(row)), abs(col - mean(col))) |>
+  slice(1) |>
+  mutate(Central = TRUE) |>
+  select(Index, Central) |>
+  right_join(patches, by = "Index") |>
+  replace_na(list(Central = FALSE)) |>
+  identity() ->
+  patches
+
 ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
-	geom_sf() +
-	geom_sf(data = patches |> filter(Central), fill="red")
+  geom_sf() +
+  geom_sf(data = patches |> filter(Central), fill="red")
 
 start_patch <- patches |> filter(Central) |> pull(Index)
 
@@ -119,107 +256,107 @@ start_patch <- patches |> filter(Central) |> pull(Index)
 
 migrate_fun <- function(plot=TRUE){
 
-	# A group first selects a direction based on capacity of immediate neighbours:
-	neighbours |>
-		filter(Index==start_patch) |>
-		# TODO: this should take into account also the number of sows in each neighbouring patch (currently zero)
-		mutate(Probs=NeighbourCapacity+1) |>
-		slice_sample(n=1, weight_by=Probs) |>
-		pull(Direction) ->
-	direction
+  # A group first selects a direction based on capacity of immediate neighbours:
+  neighbours |>
+    filter(Index==start_patch) |>
+    # TODO: this should take into account also the number of sows in each neighbouring patch (currently zero)
+    mutate(Probs=NeighbourCapacity+1) |>
+    slice_sample(n=1, weight_by=Probs) |>
+    pull(Direction) ->
+    direction
 
-	# Then we align the directional probabilities with this direction:
-	(function(x){
-		# (This code is horrible)
-		move_index <- (1:6)-which(x==levels(direction))
-		move_index[move_index<0] <- move_index[move_index<0]+6
-		move_index <- move_index+1
-		move_probs <- dir_probs[move_index]
-		names(move_probs) <- levels(direction)
-		return(move_probs)
-	})(direction) ->
-	move_probs
+  # Then we align the directional probabilities with this direction:
+  (function(x){
+    # (This code is horrible)
+    move_index <- (1:6)-which(x==levels(direction))
+    move_index[move_index<0] <- move_index[move_index<0]+6
+    move_index <- move_index+1
+    move_probs <- dir_probs[move_index]
+    names(move_probs) <- levels(direction)
+    return(move_probs)
+  })(direction) ->
+    move_probs
 
-	# Then loop over possible movements:
-	current_patch <- start_patch
-	n_moves <- 0
-	history <- rep(NA_integer_, 50)
-	repeat{
-		# Pick neighbour to move to:
-		neighbours |>
-			filter(Index==current_patch) |>
-			mutate(Probs=move_probs[Direction]*Border) |>
-			slice_sample(n=1, weight_by=Probs) |>
-			pull(Neighbour) |>
-			identity() ->
-		current_patch
+  # Then loop over possible movements:
+  current_patch <- start_patch
+  n_moves <- 0
+  history <- rep(NA_integer_, 50)
+  repeat{
+    # Pick neighbour to move to:
+    neighbours |>
+      filter(Index==current_patch) |>
+      mutate(Probs=move_probs[Direction]*Border) |>
+      slice_sample(n=1, weight_by=Probs) |>
+      pull(Neighbour) |>
+      identity() ->
+      current_patch
 
-		# Evaluate our new neighbourhood area:
-		patches |>
-			filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
-		neighbourhood
+    # Evaluate our new neighbourhood area:
+    patches |>
+      filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
+      neighbourhood
 
-		# Determine if we want to settle in this area
-		## NEW LOGIC: we could settle either here or in a neighbouring patch
-		# Note that movements are discrete so we need to integrate:
-		cc_effect <- 0 # Could be max breeding capacity of neighbours$BreedingCapacity
-		# cc_effect should be negative
-		survival_regression <- settle_intercept + cc_effect
+    # Determine if we want to settle in this area
+    ## NEW LOGIC: we could settle either here or in a neighbouring patch
+    # Note that movements are discrete so we need to integrate:
+    cc_effect <- 0 # Could be max breeding capacity of neighbours$BreedingCapacity
+    # cc_effect should be negative
+    survival_regression <- settle_intercept + cc_effect
 
-		## Correct:
-		1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho)) |>
-		  p => rbinom(1, 1, p) ->
-		  settling
-		# Equal:
-		# 1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho))
-		# 1 - exp(-integrate(\(m) settle_rho * m^(settle_rho-1) * exp(survival_regression), n_moves, n_moves+1)[["value"]])
+    ## Correct:
+    1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho)) |>
+      p => rbinom(1, 1, p) ->
+      settling
+    # Equal:
+    # 1 - exp( exp(survival_regression) * -((n_moves+1)^settle_rho - n_moves^settle_rho))
+    # 1 - exp(-integrate(\(m) settle_rho * m^(settle_rho-1) * exp(survival_regression), n_moves, n_moves+1)[["value"]])
 
-		## TODO: there is probably a better way of doing this using the cumulative hazard?
-		## TODO: account for carrying capacities of this and surrounding patches
+    ## TODO: there is probably a better way of doing this using the cumulative hazard?
+    ## TODO: account for carrying capacities of this and surrounding patches
 
-		n_moves <- n_moves+1
-		if(length(history)<n_moves) length(history) <- length(history)*2
-		history[n_moves] <- current_patch
+    n_moves <- n_moves+1
+    if(length(history)<n_moves) length(history) <- length(history)*2
+    history[n_moves] <- current_patch
 
-		if(!settling){
-			next
-		}
+    if(!settling){
+      next
+    }
 
-		# If settling then determine where in this area to settle:
-		neighbourhood |>
-			slice_sample(n=1) ->
-		final_patch
-		# TODO: this should be based on carrying capacity
+    # If settling then determine where in this area to settle:
+    neighbourhood |>
+      slice_sample(n=1) ->
+      final_patch
+    # TODO: this should be based on carrying capacity
 
-		history[n_moves+1] <- final_patch[["Index"]]
-		break
-	}
+    history[n_moves+1] <- final_patch[["Index"]]
+    break
+  }
 
-	history <- history |> na.omit() |> as.numeric()
+  history <- history |> na.omit() |> as.numeric()
 
-	if(plot){
-		patches |>
-			mutate(Visited = case_when(
-				Central ~ "Start",
-				Index == history[length(history)] ~ "End",
-				Index %in% history ~ "Path",
-				TRUE ~ "NotVisited"
-			)) ->
-		tpatches
+  if(plot){
+    patches |>
+      mutate(Visited = case_when(
+        Central ~ "Start",
+        Index == history[length(history)] ~ "End",
+        Index %in% history ~ "Path",
+        TRUE ~ "NotVisited"
+      )) ->
+      tpatches
 
-		labs <- arrange(patches, Index)[history,] |> mutate(Label = 1:n())
+    labs <- arrange(patches, Index)[history,] |> mutate(Label = 1:n())
 
-		{
-			ggplot(tpatches) +
-			geom_sf(aes(geometry=geometry, fill=Visited)) +
-			scale_fill_manual(values=c(Start="red", End="blue", Path="dark grey", NotVisited="light grey")) +
-			geom_sf_text(aes(geometry=geometry, label=Label), labs) +
-			ggtitle(str_c("Direction: ", as.character(direction)))
-		} |> print()
-	}
+    {
+      ggplot(tpatches) +
+        geom_sf(aes(geometry=geometry, fill=Visited)) +
+        scale_fill_manual(values=c(Start="red", End="blue", Path="dark grey", NotVisited="light grey")) +
+        geom_sf_text(aes(geometry=geometry, label=Label), labs) +
+        ggtitle(str_c("Direction: ", as.character(direction)))
+    } |> print()
+  }
 
 
-	return(list(history=history, direction=as.character(direction)))
+  return(list(history=history, direction=as.character(direction)))
 }
 
 dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
@@ -229,25 +366,25 @@ migrate_fun()
 
 # To get density map of where we end up:
 pbapply::pblapply(1:1000, \(it){
-	rr <- migrate_fun(plot=FALSE)
-	data.frame(Iteration=it, Direction=rr[["direction"]], End=rr[["history"]][length(rr[["history"]])])
+  rr <- migrate_fun(plot=FALSE)
+  data.frame(Iteration=it, Direction=rr[["direction"]], End=rr[["history"]][length(rr[["history"]])])
 }) |>
-	bind_rows() ->
-results
+  bind_rows() ->
+  results
 
 results |>
-	count(Direction, End) |>
-	group_by(Direction) |>
-	mutate(Proportion = n / sum(n)) |>
-	ungroup() |>
-	select(Index=End, Direction, Proportion) |>
-	full_join(expand_grid(Index=unique(patches$Index), Direction=levels(direction)), by=c("Index", "Direction")) |>
-	replace_na(list(Proportion=0)) |>
-	full_join(patches, by="Index") ->
-plotres
+  count(Direction, End) |>
+  group_by(Direction) |>
+  mutate(Proportion = n / sum(n)) |>
+  ungroup() |>
+  select(Index=End, Direction, Proportion) |>
+  full_join(expand_grid(Index=unique(patches$Index), Direction=levels(direction)), by=c("Index", "Direction")) |>
+  replace_na(list(Proportion=0)) |>
+  full_join(patches, by="Index") ->
+  plotres
 
 ggplot(plotres) +
-	geom_sf(aes(geometry=geometry, fill=Proportion)) +
-	facet_wrap(~Direction) +
-	geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red")
+  geom_sf(aes(geometry=geometry, fill=Proportion)) +
+  facet_wrap(~Direction) +
+  geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red")
 ggsave("dispersal_pattern.pdf")

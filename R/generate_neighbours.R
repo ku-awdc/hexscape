@@ -34,27 +34,28 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
   cat("Calculating neighbours for", nrow(patches), "hexagons...\n")
 
   patches %>%
-    mutate(geometry = st_buffer(geometry, dist=buffer_dist)) %>%
+    mutate(geometry = st_buffer(geometry, dist = buffer_dist)) %>%
     select(Index, hex_centroid, area, geometry) ->
     neighbours
 
-  if(!calculate_border){
-
+  if (!calculate_border) {
     ## Neighbours method 1:  use st_join to see which patches and neighbours overlap:
     neighbours %>%
-      select(Neighbour = Index, nb_centroid=hex_centroid, nb_area=area) %>%
-      st_join(neighbours, join=st_intersects) %>%
+      select(Neighbour = Index,
+             nb_centroid = hex_centroid,
+             nb_area = area) %>%
+      st_join(neighbours, join = st_intersects) %>%
       filter(Neighbour != Index) %>%
       mutate(Border = NA_real_) ->
       neighbours
     # Note: this is fast for small # patches but may not scale as well?
     # and (more importantly) does not give us the length of the border
 
-  }else{ # if !calculate_border
+  } else{ # if !calculate_border
 
     ## Neighbours method 2:  use st_intersection to get actual area (and therefore length) of border:
     patches %>%
-      mutate(geometry = st_buffer(geometry, dist=buffer_dist)) ->
+      mutate(geometry = st_buffer(geometry, dist = buffer_dist)) ->
       neighbours
 
     ## Neighbours are limited to one of the following 8 options:
@@ -134,7 +135,7 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
 
     neighbours_incomplete_area %>%
 #      mutate(Border = (as.numeric(Intsct, units="m") - (buffer_dist*2)) / (buffer_dist*2)) %>%
-      mutate(Border = (as.numeric(Intsct, units="m")) / (buffer_dist*2)) %>%
+      mutate(Border = (as.numeric(Intsct, units = "m")) / (buffer_dist * 2)) %>%
       filter(!is.na(Border)) %>%
       select(-Intsct) %>%
       bind_rows(neighbours_complete_area) %>%
@@ -155,14 +156,15 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
     as_tibble() %>%
     bind_cols(neighbours %>% select(Index, Neighbour, Border, nb_area)) %>%
     mutate(Direction = case_when(
-      abs(Y)<sqrt(.Machine$double.eps) & X > 0 ~ "E",
-      abs(Y)<sqrt(.Machine$double.eps) & X < 0 ~ "W",
+      abs(Y) < sqrt(.Machine$double.eps) & X > 0 ~ "E",
+      abs(Y) < sqrt(.Machine$double.eps) & X < 0 ~ "W",
       Y > 0 & X > 0 ~ "NE",
       Y < 0 & X > 0 ~ "SE",
       Y > 0 & X < 0 ~ "NW",
       Y < 0 & X < 0 ~ "SW"
     )) %>%
-    mutate(Direction = factor(Direction, levels=c("NE","E","SE","SW","W","NW"))) %>%
+    mutate(Direction = factor(Direction,
+                              levels = c("NE", "E", "SE", "SW", "W", "NW"))) %>%
     select(Index, Neighbour, Border, Direction, nb_area) ->
     neighbours
 
@@ -184,6 +186,4 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
   cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
 
   return(neighbours)
-
-
 }
