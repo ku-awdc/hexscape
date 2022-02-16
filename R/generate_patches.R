@@ -28,9 +28,8 @@
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, reference_point=st_centroid(st_bbox(landscape)), land_use=NULL, min_prop = 0.01, simplify_keep=0.1){
 
-  browser()
   st <- Sys.time()
 
   stopifnot(is.numeric(hex_width) && length(hex_width)==1 && !is.na(hex_width))
