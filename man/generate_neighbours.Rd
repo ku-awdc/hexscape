@@ -6,7 +6,7 @@
 \usage{
 generate_neighbours(
   patches,
-  calculate_border = FALSE,
+  calculate_border = TRUE,
   buffer_dist = 0.001 * hex_width
 )
 }
