@@ -1,5 +1,5 @@
 ## TODO
-# Assume homogenous grid
+# Assume homogeneous grid
 # Get direction based on carrying-present+1 prob
 # Look at distribution of where they end up after 1 dispersal event
 # Parameters are baseline hazard and distance effect from Weibull
@@ -105,7 +105,20 @@ landscape %>%
 library(tmap)
 patches <- generate_patches(landscape, hex_width = hexwth) |>
   mutate(BreedingCapacity = floor(5 * area))
+
+patches %>%
+  as_tibble() %>%
+  select(-geometry, -hex_centroid, -centroid, -lu_sum) %>%
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
+
 patches
+
 
 # tm_shape(patches) +
 #   tm_polygons()
@@ -123,12 +136,12 @@ patches %>%
 #' These two quantities should match. Going counter-clockwise.
 reorder_direction <- . %>% fct_relevel("E", "NE", "NW", "W", "SW", "SE")
 default_weight <- c(
-    "forward",
-    "f_left",
-    "b_left",
-    "backward",
-    "b_right",
-    "f_right")
+  "forward",
+  "f_left",
+  "b_left",
+  "backward",
+  "b_right",
+  "f_right")
 #'
 #' Henceforth we'll assume "forward" to point to `E` (East) by default.
 #' And we'll go counter-clockwise in ordering.
@@ -163,6 +176,17 @@ neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
     by = "Neighbour"
   )
 #'
+#'
+generate_neighbours(patches, calculate_border = TRUE) %>%
+  as_tibble() %>%
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches_edge.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
+
 #'
 neighbours %>%
   rename(direction = Direction) %>%
