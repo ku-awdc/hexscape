@@ -30,6 +30,7 @@
 #' @export
 generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.01, simplify_keep=0.1){
 
+  browser()
   st <- Sys.time()
 
   stopifnot(is.numeric(hex_width) && length(hex_width)==1 && !is.na(hex_width))
@@ -132,7 +133,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
 
   }else{
   ## Otherwise just cast the patches to polygon:
-    pblapply(seq_len(nrow(patches)), function(i){      
+    pblapply(seq_len(nrow(patches)), function(i){
 		suppressWarnings(st_cast(st_buffer(patches[i,], 0.0), to="POLYGON"))
     }) ->
     patches
@@ -202,6 +203,9 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     # ggplot(relevant_land[[2]]) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
 
     cat("Determining land use summaries...\n")
+
+    browser()
+
     make_chunks(which(!is.na(patches$Index))) %>%
       pblapply(function(ch){
         # Note: geometry column is actually a list, so that is not copied here:
