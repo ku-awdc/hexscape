@@ -102,7 +102,12 @@ pt2 <- ggplot(hexagons, aes(x=x, y=y, label=lab, geometry=geometry)) +
 ggpubr::ggarrange(pt1, pt2)
 
 
-patches <- generate_patches(landscape, hexwth, reference_point)
+patches <- generate_patches(landscape, hexwth, reference_point=reference_point)
+ggplot(patches) +
+  geom_sf(aes(geometry=geometry)) +
+  geom_sf_text(aes(geometry=centroid, label=str_c(r, ", ", q)))
+
+patches <- generate_patches(landscape, hexwth)
 ggplot(patches) +
   geom_sf(aes(geometry=geometry)) +
   geom_sf_text(aes(geometry=centroid, label=str_c(r, ", ", q)))

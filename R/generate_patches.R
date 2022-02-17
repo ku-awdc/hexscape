@@ -28,7 +28,7 @@
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, reference_point=st_centroid(st_bbox(landscape)), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
 
   st <- Sys.time()
 
@@ -68,8 +68,10 @@ generate_patches <- function(landscape, hex_width, reference_point=st_centroid(s
   stopifnot(inherits(landscape, "sfc"))
   landscape <- st_buffer(st_union(landscape), dist=0)
   bbox <- st_bbox(landscape)
-  refy <- bbox["ymin"]
-  refx <- bbox["xmin"]
+
+  # TODO: get point directly rather than via bbox:
+  refy <- st_bbox(reference_point)["ymin"]
+  refx <- st_bbox(reference_point)["xmin"]
 
   stopifnot(is.numeric(min_prop) && length(min_prop)==1 && min_prop <= 1 && min_prop >= 0)
 
@@ -364,6 +366,8 @@ generate_patches <- function(landscape, hex_width, reference_point=st_centroid(s
   attr(patches, "min_prop") <- min_prop
 
   cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
+
+  warning("ADD REFERENCE POINT AS ATTR")
 
   return(patches)
 
