@@ -105,8 +105,36 @@ landscape %>%
 library(tmap)
 patches <- generate_patches(landscape, hex_width = hexwth) |>
   mutate(BreedingCapacity = floor(5 * area))
-patches
 
+patches %>%
+  as_tibble() %>%
+  select(-geometry, -centroid, -hex_centroid) %>%
+  write_delim(delim = ";",
+              "../blofeld_asf/data/graph_regular_patches.csv" %>%
+               fs::file_create())
+
+# jsonlite::toJSON(patches %>% slice(1:3), pretty = TRUE)
+
+#'
+#'
+#' A grid of length 10 have hexagons that
+#' are defined and undefined.
+#' Is there a way to categorise those?
+#' Let's look at the distance to all these
+#' present hexagons, and see if the index
+#' may translate to the distance..
+#'
+#'
+patches %>%
+  mutate(
+    direct_dist = hex_centroid %>%
+      do.call(what = rbind) %>% {
+        sqrt(.[,1]**2 + .[,2]**2)
+      }) %>%
+  print(width = Inf, n = Inf)
+#'
+#'
+#'
 # tm_shape(patches) +
 #   tm_polygons()
 #
@@ -121,14 +149,15 @@ patches %>%
   tm_text("row_col", size = 1)
 #'
 #' These two quantities should match. Going counter-clockwise.
-reorder_direction <- . %>% fct_relevel("E", "NE", "NW", "W", "SW", "SE")
+reorder_direction <- . %>%
+  fct_relevel("E", "NE", "NW", "W", "SW", "SE")
 default_weight <- c(
-    "forward",
-    "f_left",
-    "b_left",
-    "backward",
-    "b_right",
-    "f_right")
+  "forward",
+  "f_left",
+  "b_left",
+  "backward",
+  "b_right",
+  "f_right")
 #'
 #' Henceforth we'll assume "forward" to point to `E` (East) by default.
 #' And we'll go counter-clockwise in ordering.
@@ -140,7 +169,7 @@ neighbour_indices <- function(row, col) {
     "NW", +1, -(row %% 2 > 0.5),
     "W",   0, -1,
     "SW", -1, -(row %% 2 > 0.5),
-    "SE", -1, row %% 2 <= 0.5) %>%
+    "SE", -1, row %% 2 <= 0.5)  %>%
     mutate(
       row = row + row_offset,
       col = col + col_offset,
@@ -153,7 +182,6 @@ neighbour_indices(1, 1)
 neighbour_indices(2, 2)
 neighbour_indices(3, 3)
 neighbour_indices(3, 2)
-
 #'
 
 neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
@@ -162,6 +190,7 @@ neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
       select(Neighbour = Index, NeighbourCapacity = BreedingCapacity),
     by = "Neighbour"
   )
+#'
 #'
 #'
 neighbours %>%
@@ -234,6 +263,8 @@ patches %>%
 # neigh_indices_formula %>%
 #   summarise(across(where(~!is.factor(.x)), max))
 #'
+patches_orig <- patches;
+#'
 # Identify the central patch:
 patches |>
   as_tibble() |>
@@ -245,7 +276,9 @@ patches |>
   replace_na(list(Central = FALSE)) |>
   identity() ->
   patches
-
+#'
+#'
+patches
 ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
   geom_sf() +
   geom_sf(data = patches |> filter(Central), fill="red")
@@ -293,7 +326,10 @@ migrate_fun <- function(plot=TRUE){
 
     # Evaluate our new neighbourhood area:
     patches |>
-      filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
+      filter(Index %in% c(current_patch,
+                          neighbours |>
+                            filter(Index == current_patch) |>
+                            pull(Neighbour))) ->
       neighbourhood
 
     # Determine if we want to settle in this area
@@ -324,7 +360,7 @@ migrate_fun <- function(plot=TRUE){
 
     # If settling then determine where in this area to settle:
     neighbourhood |>
-      slice_sample(n=1) ->
+      slice_sample(n = 1) ->
       final_patch
     # TODO: this should be based on carrying capacity
 
@@ -334,7 +370,7 @@ migrate_fun <- function(plot=TRUE){
 
   history <- history |> na.omit() |> as.numeric()
 
-  if(plot){
+  if (plot) {
     patches |>
       mutate(Visited = case_when(
         Central ~ "Start",
