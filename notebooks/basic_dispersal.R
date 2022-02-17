@@ -1,5 +1,5 @@
 ## TODO
-# Assume homogenous grid
+# Assume homogeneous grid
 # Get direction based on carrying-present+1 prob
 # Look at distribution of where they end up after 1 dispersal event
 # Parameters are baseline hazard and distance effect from Weibull
@@ -105,16 +105,8 @@ landscape %>%
 library(tmap)
 patches <- generate_patches(landscape, hex_width = hexwth) |>
   mutate(BreedingCapacity = floor(5 * area))
-
-patches %>%
-  as_tibble() %>%
-  select(-geometry, -centroid, -hex_centroid) %>%
-  write_delim(delim = ";",
-              "../blofeld_asf/data/graph_regular_patches.csv" %>%
-               fs::file_create())
-
-# jsonlite::toJSON(patches %>% slice(1:3), pretty = TRUE)
-
+#'
+#' 
 #'
 #'
 #' A grid of length 10 have hexagons that
@@ -135,6 +127,18 @@ patches %>%
 #'
 #'
 #'
+patches %>%
+  as_tibble() %>%
+  select(-geometry, -hex_centroid, -centroid, -lu_sum) %>%
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
+
+patches
 # tm_shape(patches) +
 #   tm_polygons()
 #
@@ -192,7 +196,17 @@ neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
   )
 #'
 #'
+generate_neighbours(patches, calculate_border = TRUE) %>%
+  as_tibble() %>%
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches_edge.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
 #'
+#' 
 neighbours %>%
   rename(direction = Direction) %>%
   # missing `row` and `col`
