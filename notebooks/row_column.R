@@ -15,6 +15,12 @@ corners <- tribble(~x, ~y,
 )
 landscape <- st_sfc(st_multipolygon(list(list(as.matrix(corners)))))
 
+p1 <- rbind(c(0,0), c(10,0), c(30,20), c(20,40), c(10,40), c(0,0))
+p2 <- rbind(c(10,10), c(10,20), c(20,20), c(10,10))
+landscape <- st_sfc(st_polygon(list(p1,p2)))
+ggplot(landscape) + geom_sf()
+
+
 centerpoint <- st_centroid(landscape)
 reference_point <- st_point(runif(2,-10,20))
 
@@ -111,3 +117,10 @@ patches <- generate_patches(landscape, hexwth)
 ggplot(patches) +
   geom_sf(aes(geometry=geometry)) +
   geom_sf_text(aes(geometry=centroid, label=str_c(r, ", ", q)))
+
+ggplot(patches) +
+  geom_sf(aes(geometry=geometry)) +
+  geom_sf_text(aes(geometry=centroid, label=Index))
+
+neighbours <- generate_neighbours(patches, calc=TRUE)
+neighbours %>% filter(Index=="patch_14")

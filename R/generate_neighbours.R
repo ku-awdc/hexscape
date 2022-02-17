@@ -58,26 +58,20 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
       neighbours
 
     ## Neighbours are limited to one of the following 8 options:
-    expand_grid(row_adj=seq(-1,1,1), col_adj=seq(-1,1,1)) %>%
-      filter(row_adj!=0 | col_adj!=0) %>%
+    expand_grid(r_adj=seq(-1,1,1), q_adj=seq(-1,1,1)) %>%
+      # Filter out the same patch:
+      filter(r_adj!=0 | q_adj!=0) %>%
+      # Then filter out the q-1 and r-1, and q+1 and r+1:
+      filter(! (r_adj+q_adj) %in% c(-2, 2)) %>%
       mutate(NeighbourNumber = 1:n()) %>%
       split(.$NeighbourNumber) %>%
       map_df( ~ bind_cols(.x, neighbours)) %>%
-      mutate(row = row + row_adj, col = col + col_adj) %>%
-      # Remove the 2 non-neighbours based on odd vs even row:
-      mutate(offset = as.logical(row %% 2 < 0.5)) %>%
-      mutate(using = case_when(
-        row_adj == 0 ~ TRUE,
-        col_adj == 0 ~ TRUE,
-        !offset & col_adj>0 ~ TRUE,
-        offset & col_adj<0 ~ TRUE,
-        TRUE ~ FALSE
-      )) %>%
-      filter(using) %>%
-      select(Neighbour=Index, row, col, nb_centroid=hex_centroid, nb_geometry=geometry, nb_area=area) %>%
+      mutate(r = r + r_adj, q = q + q_adj) %>%
+      select(Neighbour=Index, r, q, nb_centroid=hex_centroid, nb_geometry=geometry, nb_area=area) %>%
       as_tibble() %>%
-      right_join(neighbours, by=c("row","col")) %>%
-      select(Index, Neighbour, area, hex_centroid, geometry, nb_area, nb_centroid, nb_geometry) ->
+      right_join(neighbours, by=c("r","q")) %>%
+      select(Index, Neighbour, area, hex_centroid, geometry, nb_area, nb_centroid, nb_geometry) %>%
+      arrange(Index, Neighbour) ->
       neighbours
 
     #	rdpt <- patches %>% slice_sample(n=1)
@@ -151,6 +145,7 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
   cat("Calculating direction to these neighbours...\n")
 
   # Finally add the direction to these neighbours:
+  ## TODO: this may be more efficient based on q and r:
   st_coordinates(neighbours$nb_centroid - neighbours$hex_centroid) %>%
     as_tibble() %>%
     bind_cols(neighbours %>% select(Index, Neighbour, Border, nb_area)) %>%

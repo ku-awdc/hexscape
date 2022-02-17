@@ -28,7 +28,7 @@
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
 
   st <- Sys.time()
 
@@ -179,7 +179,7 @@ generate_patches <- function(landscape, hex_width, reference_point=st_centroid(l
     filter(area >= min_prop * hexarea) %>%
     # Information is duplicated by combination of row and col:
     # mutate(HexIndex = Index, Index = 1:n()) ->
-    arrange(is.na(Index)) %>%
+    arrange(is.na(Index), q, r) %>%
     mutate(Index = case_when(is.na(Index) ~ NA_integer_, TRUE ~ 1:n())) ->
   patches
 
@@ -358,16 +358,22 @@ generate_patches <- function(landscape, hex_width, reference_point=st_centroid(l
     select(Index, r, q, centroid, hex_centroid, area, lu_sum=area_sum, starts_with("LU"), geometry) ->
     patches
 
+  if(name_index){
+    patches %>%
+      mutate(Index = str_c(name, "_", gsub(" ", "0", format(Index)))) ->
+      patches
+  }
+
   st_crs(patches$centroid) <- st_crs(patches$geometry)
   st_crs(patches$hex_centroid) <- st_crs(patches$geometry)
 
   class(patches) <- c("patches", class(patches))
   attr(patches, "hex_width") <- hex_width
   attr(patches, "min_prop") <- min_prop
+  attr(patches, "reference_point") <- reference_point
+  attr(patches, "name") <- name
 
   cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
-
-  warning("ADD REFERENCE POINT AS ATTR")
 
   return(patches)
 
