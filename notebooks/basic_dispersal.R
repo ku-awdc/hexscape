@@ -106,8 +106,6 @@ library(tmap)
 patches <- generate_patches(landscape, hex_width = hexwth) |>
   mutate(BreedingCapacity = floor(5 * area))
 #'
-#' 
-#'
 #'
 #' A grid of length 10 have hexagons that
 #' are defined and undefined.
@@ -145,7 +143,7 @@ patches
 # tm_shape(patches) +
 #   tm_polygons("BreedingCapacity")
 patches %>%
-  mutate(row_col = str_c("(", row, ", ", col,")")) %>%
+  mutate(row_col = str_c("(", r, ", ", q,")")) %>%
   # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
   tm_shape() +
   tm_polygons() +
@@ -166,26 +164,29 @@ default_weight <- c(
 #' Henceforth we'll assume "forward" to point to `E` (East) by default.
 #' And we'll go counter-clockwise in ordering.
 neighbour_indices <- function(row, col) {
+  stop("need to be reimplemented, since we now use axial coordinates")
   tribble(
     ~direction, ~row_offset, ~col_offset,
-    "E",   0, +1,
-    "NE", +1, +row %% 2 <= 0.5,
-    "NW", +1, -(row %% 2 > 0.5),
-    "W",   0, -1,
-    "SW", -1, -(row %% 2 > 0.5),
-    "SE", -1, row %% 2 <= 0.5)  %>%
+    # "E",   0, +1,
+    # "NE", +1, +row %% 2 <= 0.5,
+    # "NW", +1, -(row %% 2 > 0.5),
+    # "W",   0, -1,
+    # "SW", -1, -(row %% 2 > 0.5),
+    # "SE", -1, row %% 2 <= 0.5
+  )  %>%
     mutate(
       row = row + row_offset,
       col = col + col_offset,
       direction = direction %>% reorder_direction())
 }
 #'
-neighbour_indices(0, 0) %>%
-  filter(row >= 0, col >= 0)
-neighbour_indices(1, 1)
-neighbour_indices(2, 2)
-neighbour_indices(3, 3)
-neighbour_indices(3, 2)
+# TESTS / VALIDATION
+# neighbour_indices(0, 0) %>%
+#   filter(row >= 0, col >= 0)
+# neighbour_indices(1, 1)
+# neighbour_indices(2, 2)
+# neighbour_indices(3, 3)
+# neighbour_indices(3, 2)
 #'
 
 neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
@@ -206,7 +207,7 @@ generate_neighbours(patches, calculate_border = TRUE) %>%
                 create_path_if_needed(),
               progress = TRUE)
 #'
-#' 
+#'
 neighbours %>%
   rename(direction = Direction) %>%
   # missing `row` and `col`
@@ -409,8 +410,8 @@ migrate_fun <- function(plot=TRUE){
   return(list(history=history, direction=as.character(direction)))
 }
 
-dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
-settle_intercept <- -2
+# dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
+# settle_intercept <- -2
 
 migrate_fun()
 
@@ -438,3 +439,4 @@ ggplot(plotres) +
   facet_wrap(~Direction) +
   geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red")
 ggsave("dispersal_pattern.pdf")
+
