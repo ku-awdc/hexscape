@@ -103,7 +103,7 @@ landscape %>%
   plot()
 #'
 library(tmap)
-patches <- generate_patches(landscape, hex_width = hexwth) |>
+patches <- generate_patches(landscape, hex_width = hexwth, name_index = FALSE) |>
   mutate(BreedingCapacity = floor(5 * area))
 #'
 #'
