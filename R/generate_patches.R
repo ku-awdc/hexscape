@@ -28,7 +28,7 @@
 #' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
 
   st <- Sys.time()
 
@@ -69,17 +69,43 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
   landscape <- st_buffer(st_union(landscape), dist=0)
   bbox <- st_bbox(landscape)
 
+  # TODO: get point directly rather than via bbox:
+  refy <- st_bbox(reference_point)["ymin"]
+  refx <- st_bbox(reference_point)["xmin"]
+
   stopifnot(is.numeric(min_prop) && length(min_prop)==1 && min_prop <= 1 && min_prop >= 0)
 
-  # An over-estimate of the number of centroids needed:
-  nx <- ceiling((bbox["xmax"]-bbox["xmin"]) / hexwth) +1
-  ny <- ceiling((bbox["ymax"]-bbox["ymin"]) / (hexhgt + hexlth)) *2  +1
+  ## We will use an axial coordinate system for hexagons a-la:
+  # https://www.redblobgames.com/grids/hexagons/#map-storage
 
-  cat("Creating", ny*nx, "hexagons...\n")
-  expand_grid(row = seq(0,ny-1,by=1), col = seq(0,nx-1,by=1)) %>%
-    mutate(offset = as.logical(row %% 2 < 0.5)) %>%
-    mutate(x = bbox["xmin"] + case_when( !offset ~ hexwth*col, offset ~ hexwth/2 + hexwth*col)) %>%
-    mutate(y = bbox["ymin"] + (hexhgt+hexlth)*row/2) %>%
+  # Row numbers (r) are relatively easy:
+  yrange <- as.numeric(refy - st_bbox(landscape)[c("ymin","ymax")]) / ((hexlth+hexhgt)/2)
+  # r <- seq(floor(yrange[2]-1), ceiling(yrange[1]+1))
+  r_using <- seq(floor(yrange[2]), ceiling(yrange[1]))
+
+  # For column numbers (q) we need to distort the boundary box relative to the reference point
+  # i.e. we need the length of the opposite (distortion) based on length of the adjacent and
+  # known angle (1/12 of a circle)
+  xrange <- (c(
+    as.numeric(bbox["xmin"] + (bbox["ymin"] - refy) * tanpi(1/6)),
+    as.numeric(bbox["xmax"] + (bbox["ymax"] - refy) * tanpi(1/6))
+  ) - refx) / hexwth
+  #q <- seq(floor(xrange[1]-1), ceiling(xrange[2]+1))
+  q_using <- seq(floor(xrange[1]), ceiling(xrange[2]))
+
+  ## Then generate the centroids of the hexagons we need
+  hexagons <- expand_grid(r=r_using, q=q_using) %>%
+    mutate(y = refy - r*(hexlth+hexhgt)/2, yy=y) %>%
+    mutate(x = refx + r*hexwth/2 + q*hexwth, xx=x) %>%
+    # Filter out anything too far away from the lanscape:
+    st_as_sf(coords=c("xx","yy")) %>%
+    mutate(dist = st_distance(geometry, landscape)[,1]) %>%
+    filter(dist < (hexhgt/1.9)) %>%
+    as_tibble() %>%
+    select(-dist)
+
+  cat("Creating", nrow(hexagons), "hexagons...\n")
+  hexagons %>%
     mutate(Index = 1:n()) %>%
     split(.$Index) %>%
     pblapply(function(.x) .x %>% mutate(geometry = genpoly(x, y), centroid = st_sfc(st_point(c(x,y))))) %>%
@@ -92,7 +118,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     mutate(OK = st_intersects(geometry, landscape, sparse=FALSE)[,1]) %>%
     filter(OK) %>%
     mutate(geometry = st_intersection(geometry, landscape)) %>%
-    select(Index, row, col, centroid, geometry) %>%
+    select(Index, r, q, centroid, geometry) %>%
     # We need to remove small ones here as otherwise some can't be cast to POLYGON below:
     mutate(area = as.numeric(st_area(geometry), units="m")) %>%
     filter(area >= min_prop * hexarea) ->
@@ -122,17 +148,19 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     patches
 
     ## Add a patch with missing index reflecting impassable areas:
-    impatch <- tibble(Index=NA_integer_, row=NA_real_, col=NA_real_,
+    if(add_removed){
+      impatch <- tibble(Index=NA_integer_, r=NA_real_, q=NA_real_,
                       centroid=st_centroid(impassable),
                       area = as.numeric(st_area(impassable)),
                       geometry = impassable) %>%
-      st_as_sf(sf_column_name = "geometry")
+        st_as_sf(sf_column_name = "geometry")
 
-    patches <- c(patches, list(impatch))
+      patches <- c(patches, list(impatch))
+    }
 
   }else{
   ## Otherwise just cast the patches to polygon:
-    pblapply(seq_len(nrow(patches)), function(i){      
+    pblapply(seq_len(nrow(patches)), function(i){
 		suppressWarnings(st_cast(st_buffer(patches[i,], 0.0), to="POLYGON"))
     }) ->
     patches
@@ -151,7 +179,7 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     filter(area >= min_prop * hexarea) %>%
     # Information is duplicated by combination of row and col:
     # mutate(HexIndex = Index, Index = 1:n()) ->
-    arrange(is.na(Index)) %>%
+    arrange(is.na(Index), q, r) %>%
     mutate(Index = case_when(is.na(Index) ~ NA_integer_, TRUE ~ 1:n())) ->
   patches
 
@@ -202,6 +230,9 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
     # ggplot(relevant_land[[2]]) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
 
     cat("Determining land use summaries...\n")
+
+    browser()
+
     make_chunks(which(!is.na(patches$Index))) %>%
       pblapply(function(ch){
         # Note: geometry column is actually a list, so that is not copied here:
@@ -324,8 +355,14 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
   cat("Recalculating centroids...\n")
   patches %>%
     mutate(hex_centroid = centroid, centroid = st_centroid(geometry)) %>%
-    select(Index, row, col, centroid, hex_centroid, area, lu_sum=area_sum, starts_with("LU"), geometry) ->
+    select(Index, r, q, centroid, hex_centroid, area, lu_sum=area_sum, starts_with("LU"), geometry) ->
     patches
+
+  if(name_index){
+    patches %>%
+      mutate(Index = str_c(name, "_", gsub(" ", "0", format(Index)))) ->
+      patches
+  }
 
   st_crs(patches$centroid) <- st_crs(patches$geometry)
   st_crs(patches$hex_centroid) <- st_crs(patches$geometry)
@@ -333,6 +370,8 @@ generate_patches <- function(landscape, hex_width, land_use=NULL, min_prop = 0.0
   class(patches) <- c("patches", class(patches))
   attr(patches, "hex_width") <- hex_width
   attr(patches, "min_prop") <- min_prop
+  attr(patches, "reference_point") <- reference_point
+  attr(patches, "name") <- name
 
   cat("Done in ", round(as.numeric(Sys.time() - st, units="mins")), " mins\n", sep="")
 
