@@ -103,9 +103,28 @@ landscape %>%
   plot()
 #'
 library(tmap)
-patches <- generate_patches(landscape, hex_width = hexwth) |>
+patches <- generate_patches(landscape, hex_width = hexwth, name_index = FALSE) |>
   mutate(BreedingCapacity = floor(5 * area))
-
+#'
+#'
+#' A grid of length 10 have hexagons that
+#' are defined and undefined.
+#' Is there a way to categorise those?
+#' Let's look at the distance to all these
+#' present hexagons, and see if the index
+#' may translate to the distance..
+#'
+#'
+patches %>%
+  mutate(
+    direct_dist = hex_centroid %>%
+      do.call(what = rbind) %>% {
+        sqrt(.[,1]**2 + .[,2]**2)
+      }) %>%
+  print(width = Inf, n = Inf)
+#'
+#'
+#'
 patches %>%
   as_tibble() %>%
   select(-geometry, -hex_centroid, -centroid, -lu_sum) %>%
@@ -118,8 +137,6 @@ patches %>%
               progress = TRUE)
 
 patches
-
-
 # tm_shape(patches) +
 #   tm_polygons()
 #
@@ -134,7 +151,8 @@ patches %>%
   tm_text("row_col", size = 1)
 #'
 #' These two quantities should match. Going counter-clockwise.
-reorder_direction <- . %>% fct_relevel("E", "NE", "NW", "W", "SW", "SE")
+reorder_direction <- . %>%
+  fct_relevel("E", "NE", "NW", "W", "SW", "SE")
 default_weight <- c(
   "forward",
   "f_left",
@@ -146,27 +164,29 @@ default_weight <- c(
 #' Henceforth we'll assume "forward" to point to `E` (East) by default.
 #' And we'll go counter-clockwise in ordering.
 neighbour_indices <- function(row, col) {
+  stop("need to be reimplemented, since we now use axial coordinates")
   tribble(
     ~direction, ~row_offset, ~col_offset,
-    "E",   0, +1,
-    "NE", +1, +row %% 2 <= 0.5,
-    "NW", +1, -(row %% 2 > 0.5),
-    "W",   0, -1,
-    "SW", -1, -(row %% 2 > 0.5),
-    "SE", -1, row %% 2 <= 0.5) %>%
+    # "E",   0, +1,
+    # "NE", +1, +row %% 2 <= 0.5,
+    # "NW", +1, -(row %% 2 > 0.5),
+    # "W",   0, -1,
+    # "SW", -1, -(row %% 2 > 0.5),
+    # "SE", -1, row %% 2 <= 0.5
+  )  %>%
     mutate(
       row = row + row_offset,
       col = col + col_offset,
       direction = direction %>% reorder_direction())
 }
 #'
-neighbour_indices(0, 0) %>%
-  filter(row >= 0, col >= 0)
-neighbour_indices(1, 1)
-neighbour_indices(2, 2)
-neighbour_indices(3, 3)
-neighbour_indices(3, 2)
-
+# TESTS / VALIDATION
+# neighbour_indices(0, 0) %>%
+#   filter(row >= 0, col >= 0)
+# neighbour_indices(1, 1)
+# neighbour_indices(2, 2)
+# neighbour_indices(3, 3)
+# neighbour_indices(3, 2)
 #'
 
 neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
@@ -186,7 +206,7 @@ generate_neighbours(patches, calculate_border = TRUE) %>%
               "../blofeld_asf/data/regular_graph_patches_edge.csv" %>%
                 create_path_if_needed(),
               progress = TRUE)
-
+#'
 #'
 neighbours %>%
   rename(direction = Direction) %>%
@@ -258,6 +278,8 @@ patches %>%
 # neigh_indices_formula %>%
 #   summarise(across(where(~!is.factor(.x)), max))
 #'
+patches_orig <- patches;
+#'
 # Identify the central patch:
 patches |>
   as_tibble() |>
@@ -269,7 +291,9 @@ patches |>
   replace_na(list(Central = FALSE)) |>
   identity() ->
   patches
-
+#'
+#'
+patches
 ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
   geom_sf() +
   geom_sf(data = patches |> filter(Central), fill="red") +
@@ -318,7 +342,10 @@ migrate_fun <- function(plot=TRUE){
 
     # Evaluate our new neighbourhood area:
     patches |>
-      filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
+      filter(Index %in% c(current_patch,
+                          neighbours |>
+                            filter(Index == current_patch) |>
+                            pull(Neighbour))) ->
       neighbourhood
 
     # Determine if we want to settle in this area
@@ -349,7 +376,7 @@ migrate_fun <- function(plot=TRUE){
 
     # If settling then determine where in this area to settle:
     neighbourhood |>
-      slice_sample(n=1) ->
+      slice_sample(n = 1) ->
       final_patch
     # TODO: this should be based on carrying capacity
 
@@ -359,7 +386,7 @@ migrate_fun <- function(plot=TRUE){
 
   history <- history |> na.omit() |> as.numeric()
 
-  if(plot){
+  if (plot) {
     patches |>
       mutate(Visited = case_when(
         Central ~ "Start",
@@ -387,8 +414,8 @@ migrate_fun <- function(plot=TRUE){
   return(list(history=history, direction=as.character(direction)))
 }
 
-dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
-settle_intercept <- -2
+# dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
+# settle_intercept <- -2
 
 migrate_fun()
 
@@ -417,3 +444,4 @@ ggplot(plotres) +
   geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red") +
   theme_void()
 ggsave("dispersal_pattern.pdf")
+
