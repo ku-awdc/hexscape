@@ -126,7 +126,7 @@ patches
 # tm_shape(patches) +
 #   tm_polygons("BreedingCapacity")
 patches %>%
-  mutate(row_col = str_c("(", row, ", ", col,")")) %>%
+  mutate(row_col = str_c(Index, ": (", row, ", ", col,")")) %>%
   # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
   tm_shape() +
   tm_polygons() +
@@ -272,7 +272,8 @@ patches |>
 
 ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
   geom_sf() +
-  geom_sf(data = patches |> filter(Central), fill="red")
+  geom_sf(data = patches |> filter(Central), fill="red") +
+  theme_void()
 
 start_patch <- patches |> filter(Central) |> pull(Index)
 
@@ -282,10 +283,10 @@ migrate_fun <- function(plot=TRUE){
 
   # A group first selects a direction based on capacity of immediate neighbours:
   neighbours |>
-    filter(Index==start_patch) |>
+    filter(Index == start_patch) |>
     # TODO: this should take into account also the number of sows in each neighbouring patch (currently zero)
-    mutate(Probs=NeighbourCapacity+1) |>
-    slice_sample(n=1, weight_by=Probs) |>
+    mutate(Probs = NeighbourCapacity + 1) |>
+    slice_sample(n = 1, weight_by = Probs) |>
     pull(Direction) ->
     direction
 
@@ -372,10 +373,13 @@ migrate_fun <- function(plot=TRUE){
 
     {
       ggplot(tpatches) +
-        geom_sf(aes(geometry=geometry, fill=Visited)) +
+        geom_sf(aes(geometry = geometry, fill = Visited)) +
         scale_fill_manual(values=c(Start="red", End="blue", Path="dark grey", NotVisited="light grey")) +
-        geom_sf_text(aes(geometry=geometry, label=Label), labs) +
-        ggtitle(str_c("Direction: ", as.character(direction)))
+        geom_sf_text(aes(geometry = geometry, label = Label), labs) +
+
+        ggtitle(str_c("Direction: ", as.character(direction))) +
+        theme_void() +
+        NULL
     } |> print()
   }
 
@@ -389,9 +393,9 @@ settle_intercept <- -2
 migrate_fun()
 
 # To get density map of where we end up:
-pbapply::pblapply(1:1000, \(it){
-  rr <- migrate_fun(plot=FALSE)
-  data.frame(Iteration=it, Direction=rr[["direction"]], End=rr[["history"]][length(rr[["history"]])])
+pbapply::pblapply(1:1000, \(it) {
+  rr <- migrate_fun(plot = FALSE)
+  data.frame(Iteration = it, Direction = rr[["direction"]], End = rr[["history"]][length(rr[["history"]])])
 }) |>
   bind_rows() ->
   results
@@ -401,14 +405,15 @@ results |>
   group_by(Direction) |>
   mutate(Proportion = n / sum(n)) |>
   ungroup() |>
-  select(Index=End, Direction, Proportion) |>
+  select(Index = End, Direction, Proportion) |>
   full_join(expand_grid(Index=unique(patches$Index), Direction=levels(direction)), by=c("Index", "Direction")) |>
-  replace_na(list(Proportion=0)) |>
-  full_join(patches, by="Index") ->
+  replace_na(list(Proportion = 0)) |>
+  full_join(patches, by = "Index") ->
   plotres
 
 ggplot(plotres) +
   geom_sf(aes(geometry=geometry, fill=Proportion)) +
   facet_wrap(~Direction) +
-  geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red")
+  geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red") +
+  theme_void()
 ggsave("dispersal_pattern.pdf")
