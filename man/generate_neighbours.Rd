@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_neighbours.R
 \name{generate_neighbours}
 \alias{generate_neighbours}
-\title{Title}
+\title{Generate a sparse matrix of neighbours for patches (i.e. edges in the graph)}
 \usage{
 generate_neighbours(
   patches,
@@ -11,11 +11,12 @@ generate_neighbours(
 )
 }
 \arguments{
-\item{buffer_dist}{}
-}
-\value{
+\item{patches}{an object created by \code{\link{generate_patches}}}
 
+\item{calculate_border}{should the length of the common border to neighbours be calculated?}
+
+\item{buffer_dist}{a tolerance limit defining which borders are considered to be contiguous}
 }
 \description{
-Title
+Generate a sparse matrix of neighbours for patches (i.e. edges in the graph)
 }

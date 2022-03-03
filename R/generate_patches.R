@@ -1,10 +1,14 @@
-#' Title
+#' Generate hexagons (patches) within a user-specified landscape
 #'
-#' @param landscape
-#' @param hex_width
-#' @param calculate_border
-#' @param buffer_dist
-#' @param min_prop
+#' @param landscape spatial information for the area to convert into hexagons (an sfc object) - this may be a simple polygon, or a more complex sfc object containing different land types to be classified according to the land_use argument
+#' @param hex_width the width of the hexagons
+#' @param name a name for the landscape - this is used for caching, and is also useful when combining different landscapes together at a later point
+#' @param name_index should the name of the landscape be prepended to the patch indices? This facilitates combining different landscapes together at a later point. Otherwise, the patch index will be a number.
+#' @param reference_point the coordinate for the centre of the patch with row (r) 0 and column (q) 0. This need not be within the landscape specified. In order to combine landscapes together, each must have been generated using an identical reference_point.
+#' @param land_use an optional data frame of categorisations for different land types in the landscape (TODO: expand help)
+#' @param add_removed option to crate a patch with index NA containing all of the parts of the landscape that have been removed due to consisting of impassable land types. May be useful for visualising an entire landscape.
+#' @param min_prop the minimum size of a patch to retain relative to the area of a "full hexagon". This can be adjusted to remove small fragments of patches e.g. along coastlines.
+#' @param simplify_keep passed on to \code{\link[rmapshaper]{ms_simplify}}
 #'
 #' @import sf
 #' @importFrom rmapshaper ms_simplify
@@ -25,7 +29,9 @@
 #' ## And add our hexagons:
 #' patches <- generate_patches(landscape, hex_width=2)
 #' patches
-#' ggplot(patches, aes(label=Index)) + geom_sf() + geom_sf_text()
+#' ggplot(patches) + geom_sf() + theme_void()
+#' ggplot(patches %>% filter(r %in% 0:3, q %in% 0:3), aes(label=Index)) + geom_sf() + geom_sf_text()
+#'
 #'
 #' @export
 generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){

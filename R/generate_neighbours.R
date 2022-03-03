@@ -1,13 +1,10 @@
-#' Title
+#' Generate a sparse matrix of neighbours for patches (i.e. edges in the graph)
 #'
-#' @param patches
-#' @param calculate_border
-#' @param buffer_dist
+#' @param patches an object created by \code{\link{generate_patches}}
+#' @param calculate_border should the length of the common border to neighbours be calculated?
+#' @param buffer_dist a tolerance limit defining which borders are considered to be contiguous
 #'
-#' @return
 #' @export
-#'
-#' @examples
 generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.001*hex_width){
 
   st <- Sys.time()

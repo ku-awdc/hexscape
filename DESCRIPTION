@@ -1,7 +1,7 @@
 Package: HexScape
 Title: Aggregation of Spatial Data into Hexagonal Patches using Simple Features
-Date: 2022-02-17
-Version: 0.2.0-1
+Date: 2022-02-23
+Version: 0.2.1-1
 Authors@R: 
     c(person(given = "Matt",
            family = "Denwood",
@@ -12,7 +12,7 @@ Authors@R:
            role = c("aut"),
            email = "mossa@sund.ku.dk")
     )
-Description: What the package does (one paragraph).
+Description: TODO
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
