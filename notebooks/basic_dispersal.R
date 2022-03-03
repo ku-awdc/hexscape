@@ -129,7 +129,11 @@ patches %>%
 #'
 patches %>%
   as_tibble() %>%
-  select(-geometry, -hex_centroid, -centroid, -lu_sum) %>%
+  select(-geometry, -centroid, -lu_sum) %>%
+  mutate(hex_centroid = hex_centroid %>% st_coordinates() %>% as_tibble()) %>%
+  unpack(hex_centroid, names_sep = "_") %>%
+
+
   # to get the schema for the rust code.
   # slice(3) %>%
   # jsonlite::toJSON(pretty = TRUE)
