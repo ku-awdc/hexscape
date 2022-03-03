@@ -12,6 +12,8 @@ library(HexScape)
 library(sf)
 library(magrittr)
 
+devtools::load_all()
+
 # Did you know about this?
 Sys.setenv(`_R_USE_PIPEBIND_` = TRUE)
 # Which enables:
@@ -143,12 +145,12 @@ patches
 # tm_shape(patches) +
 #   tm_polygons("BreedingCapacity")
 patches %>%
-  mutate(row_col = str_c(Index, ": (", row, ", ", col,")")) %>%
+  mutate(index_row_col = str_c(Index, ": (", r, ", ", q,")")) %>%
   # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
   tm_shape() +
   tm_polygons() +
   # tm_text("row", size = .5)
-  tm_text("row_col", size = 1)
+  tm_text("index_row_col", size = 1)
 #'
 #' These two quantities should match. Going counter-clockwise.
 reorder_direction <- . %>%
@@ -161,33 +163,7 @@ default_weight <- c(
   "b_right",
   "f_right")
 #'
-#' Henceforth we'll assume "forward" to point to `E` (East) by default.
-#' And we'll go counter-clockwise in ordering.
-neighbour_indices <- function(row, col) {
-  stop("need to be reimplemented, since we now use axial coordinates")
-  tribble(
-    ~direction, ~row_offset, ~col_offset,
-    # "E",   0, +1,
-    # "NE", +1, +row %% 2 <= 0.5,
-    # "NW", +1, -(row %% 2 > 0.5),
-    # "W",   0, -1,
-    # "SW", -1, -(row %% 2 > 0.5),
-    # "SE", -1, row %% 2 <= 0.5
-  )  %>%
-    mutate(
-      row = row + row_offset,
-      col = col + col_offset,
-      direction = direction %>% reorder_direction())
-}
-#'
-# TESTS / VALIDATION
-# neighbour_indices(0, 0) %>%
-#   filter(row >= 0, col >= 0)
-# neighbour_indices(1, 1)
-# neighbour_indices(2, 2)
-# neighbour_indices(3, 3)
-# neighbour_indices(3, 2)
-#'
+
 
 neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
   left_join(
@@ -207,24 +183,7 @@ generate_neighbours(patches, calculate_border = TRUE) %>%
                 create_path_if_needed(),
               progress = TRUE)
 #'
-#'
-neighbours %>%
-  rename(direction = Direction) %>%
-  # missing `row` and `col`
-  left_join(patches %>%
-              # remove geometry
-              as_tibble() %>% select(origin_row = row, origin_col = col, Index),
-            by = "Index") %>%
-  #' `Neighbour` is also an instance of `Index`
-  left_join(patches %>%
-              # remove geometry
-              as_tibble() %>% select(target_row = row, target_col = col, Index),
-            by = c("Neighbour" = "Index")) %>%
-  # arrange(row, col)
-  mutate(direction = direction %>% reorder_direction()) %>%
-  arrange(Index, direction) %>%
-  identity() ->
-  neigh_indices_groundtruth_df
+
 #'
 #'
 #' Can we infer the "right" indices? Let us construct something comparable to
