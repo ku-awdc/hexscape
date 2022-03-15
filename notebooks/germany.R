@@ -41,10 +41,20 @@ clc <- extract_clc() %>%
 stopifnot(all(!is.na(clc$Category)))
 
 land_use_processed <- land_use %>%
+
+  # East Germany (Berlin, Brandenberg, Mecklenburg, Sachsen):
+  filter(str_detect(NUTS_ID, "DE3.*") | str_detect(NUTS_ID, "DE4.*") | str_detect(NUTS_ID, "DE8.*") | str_detect(NUTS_ID, "DED.*")) %>%
+
   left_join(clc %>% select(CLC_CODE, Category), by="CLC_CODE") %>%
   filter(CLC_LABEL1 != "Unknown") %>%
   group_by(Category) %>%
   summarise(AREA_HA = sum(AREA_HA), Shape = sf::st_union(Shape), .groups="drop")
+
+ggplot(land_use_processed) + geom_sf()
+
+# save(land_use_processed, file="tempfile.rda")
+
+# Limit to
 
 # Simplify land use boundaries for computational reasons:
 land_use_processed <- land_use_processed %>%

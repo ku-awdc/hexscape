@@ -1,5 +1,5 @@
 ## TODO
-# Assume homogenous grid
+# Assume homogeneous grid
 # Get direction based on carrying-present+1 prob
 # Look at distribution of where they end up after 1 dispersal event
 # Parameters are baseline hazard and distance effect from Weibull
@@ -11,6 +11,8 @@
 library(HexScape)
 library(sf)
 library(magrittr)
+
+devtools::load_all()
 
 # Did you know about this?
 Sys.setenv(`_R_USE_PIPEBIND_` = TRUE)
@@ -103,58 +105,69 @@ landscape %>%
   plot()
 #'
 library(tmap)
-patches <- generate_patches(landscape, hex_width = hexwth) |>
+patches <- generate_patches(landscape, hex_width = hexwth, name_index = FALSE) |>
   mutate(BreedingCapacity = floor(5 * area))
-patches
+#'
+#'
+#' A grid of length 10 have hexagons that
+#' are defined and undefined.
+#' Is there a way to categorise those?
+#' Let's look at the distance to all these
+#' present hexagons, and see if the index
+#' may translate to the distance..
+#'
+#'
+patches %>%
+  mutate(
+    direct_dist = hex_centroid %>%
+      do.call(what = rbind) %>% {
+        sqrt(.[,1]**2 + .[,2]**2)
+      }) %>%
+  print(width = Inf, n = Inf)
+#'
+#'
+#'
+patches %>%
+  as_tibble() %>%
+  select(-geometry, -centroid, -lu_sum) %>%
+  mutate(hex_centroid = hex_centroid %>% st_coordinates() %>% as_tibble()) %>%
+  unpack(hex_centroid, names_sep = "_") %>%
 
+
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
+
+patches
 # tm_shape(patches) +
 #   tm_polygons()
 #
 # tm_shape(patches) +
 #   tm_polygons("BreedingCapacity")
 patches %>%
-  mutate(row_col = str_c("(", row, ", ", col,")")) %>%
+  mutate(index_row_col = str_c(Index, ": (", r, ", ", q,")")) %>%
   # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
   tm_shape() +
   tm_polygons() +
   # tm_text("row", size = .5)
-  tm_text("row_col", size = 1)
+  tm_text("index_row_col", size = 1)
 #'
 #' These two quantities should match. Going counter-clockwise.
-reorder_direction <- . %>% fct_relevel("E", "NE", "NW", "W", "SW", "SE")
+reorder_direction <- . %>%
+  fct_relevel("E", "NE", "NW", "W", "SW", "SE")
 default_weight <- c(
-    "forward",
-    "f_left",
-    "b_left",
-    "backward",
-    "b_right",
-    "f_right")
+  "forward",
+  "f_left",
+  "b_left",
+  "backward",
+  "b_right",
+  "f_right")
 #'
-#' Henceforth we'll assume "forward" to point to `E` (East) by default.
-#' And we'll go counter-clockwise in ordering.
-neighbour_indices <- function(row, col) {
-  tribble(
-    ~direction, ~row_offset, ~col_offset,
-    "E",   0, +1,
-    "NE", +1, +row %% 2 <= 0.5,
-    "NW", +1, -(row %% 2 > 0.5),
-    "W",   0, -1,
-    "SW", -1, -(row %% 2 > 0.5),
-    "SE", -1, row %% 2 <= 0.5) %>%
-    mutate(
-      row = row + row_offset,
-      col = col + col_offset,
-      direction = direction %>% reorder_direction())
-}
-#'
-neighbour_indices(0, 0) %>%
-  filter(row >= 0, col >= 0)
-neighbour_indices(1, 1)
-neighbour_indices(2, 2)
-neighbour_indices(3, 3)
-neighbour_indices(3, 2)
 
-#'
 
 neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
   left_join(
@@ -164,23 +177,17 @@ neighbours <- generate_neighbours(patches, calculate_border = TRUE) %>%
   )
 #'
 #'
-neighbours %>%
-  rename(direction = Direction) %>%
-  # missing `row` and `col`
-  left_join(patches %>%
-              # remove geometry
-              as_tibble() %>% select(origin_row = row, origin_col = col, Index),
-            by = "Index") %>%
-  #' `Neighbour` is also an instance of `Index`
-  left_join(patches %>%
-              # remove geometry
-              as_tibble() %>% select(target_row = row, target_col = col, Index),
-            by = c("Neighbour" = "Index")) %>%
-  # arrange(row, col)
-  mutate(direction = direction %>% reorder_direction()) %>%
-  arrange(Index, direction) %>%
-  identity() ->
-  neigh_indices_groundtruth_df
+generate_neighbours(patches, calculate_border = TRUE) %>%
+  as_tibble() %>%
+  # to get the schema for the rust code.
+  # slice(3) %>%
+  # jsonlite::toJSON(pretty = TRUE)
+  write_delim(delim = ";",
+              "../blofeld_asf/data/regular_graph_patches_edge.csv" %>%
+                create_path_if_needed(),
+              progress = TRUE)
+#'
+
 #'
 #'
 #' Can we infer the "right" indices? Let us construct something comparable to
@@ -233,6 +240,8 @@ patches %>%
 # VALIDATION
 # neigh_indices_formula %>%
 #   summarise(across(where(~!is.factor(.x)), max))
+#'
+patches_orig <- patches;
 #'
 # Identify the central patch:
 patches |>
@@ -293,7 +302,10 @@ migrate_fun <- function(plot=TRUE){
 
     # Evaluate our new neighbourhood area:
     patches |>
-      filter(Index %in% c(current_patch, neighbours |> filter(Index==current_patch) |> pull(Neighbour))) ->
+      filter(Index %in% c(current_patch,
+                          neighbours |>
+                            filter(Index == current_patch) |>
+                            pull(Neighbour))) ->
       neighbourhood
 
     # Determine if we want to settle in this area
@@ -324,7 +336,7 @@ migrate_fun <- function(plot=TRUE){
 
     # If settling then determine where in this area to settle:
     neighbourhood |>
-      slice_sample(n=1) ->
+      slice_sample(n = 1) ->
       final_patch
     # TODO: this should be based on carrying capacity
 
@@ -334,7 +346,7 @@ migrate_fun <- function(plot=TRUE){
 
   history <- history |> na.omit() |> as.numeric()
 
-  if(plot){
+  if (plot) {
     patches |>
       mutate(Visited = case_when(
         Central ~ "Start",
@@ -348,10 +360,13 @@ migrate_fun <- function(plot=TRUE){
 
     {
       ggplot(tpatches) +
-        geom_sf(aes(geometry=geometry, fill=Visited)) +
+        geom_sf(aes(geometry = geometry, fill = Visited)) +
         scale_fill_manual(values=c(Start="red", End="blue", Path="dark grey", NotVisited="light grey")) +
-        geom_sf_text(aes(geometry=geometry, label=Label), labs) +
-        ggtitle(str_c("Direction: ", as.character(direction)))
+        geom_sf_text(aes(geometry = geometry, label = Label), labs) +
+
+        ggtitle(str_c("Direction: ", as.character(direction))) +
+        theme_void() +
+        NULL
     } |> print()
   }
 
@@ -359,15 +374,15 @@ migrate_fun <- function(plot=TRUE){
   return(list(history=history, direction=as.character(direction)))
 }
 
-dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
-settle_intercept <- -2
+# dir_probs <- c(forward=0.4, f_right=0.25, b_right=0.045, backward=0.01, b_left=0.045, f_left=0.25)
+# settle_intercept <- -2
 
 migrate_fun()
 
 # To get density map of where we end up:
-pbapply::pblapply(1:1000, \(it){
-  rr <- migrate_fun(plot=FALSE)
-  data.frame(Iteration=it, Direction=rr[["direction"]], End=rr[["history"]][length(rr[["history"]])])
+pbapply::pblapply(1:1000, \(it) {
+  rr <- migrate_fun(plot = FALSE)
+  data.frame(Iteration = it, Direction = rr[["direction"]], End = rr[["history"]][length(rr[["history"]])])
 }) |>
   bind_rows() ->
   results
@@ -377,14 +392,16 @@ results |>
   group_by(Direction) |>
   mutate(Proportion = n / sum(n)) |>
   ungroup() |>
-  select(Index=End, Direction, Proportion) |>
+  select(Index = End, Direction, Proportion) |>
   full_join(expand_grid(Index=unique(patches$Index), Direction=levels(direction)), by=c("Index", "Direction")) |>
-  replace_na(list(Proportion=0)) |>
-  full_join(patches, by="Index") ->
+  replace_na(list(Proportion = 0)) |>
+  full_join(patches, by = "Index") ->
   plotres
 
 ggplot(plotres) +
   geom_sf(aes(geometry=geometry, fill=Proportion)) +
   facet_wrap(~Direction) +
-  geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red")
+  geom_sf(aes(geometry=geometry), patches |> filter(Central), fill="red") +
+  theme_void()
 ggsave("dispersal_pattern.pdf")
+
