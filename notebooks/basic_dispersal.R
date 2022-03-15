@@ -246,9 +246,9 @@ patches |>
   identity() ->
   patches
 
-ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
+ggplot(patches, aes(geometry = geometry, fill = BreedingCapacity)) +
   geom_sf() +
-  geom_sf(data = patches |> filter(Central), fill="red")
+  geom_sf(data = patches |> filter(Central), fill = "red")
 
 start_patch <- patches |> filter(Central) |> pull(Index)
 
@@ -258,10 +258,10 @@ migrate_fun <- function(plot=TRUE){
 
   # A group first selects a direction based on capacity of immediate neighbours:
   neighbours |>
-    filter(Index==start_patch) |>
+    filter(Index == start_patch) |>
     # TODO: this should take into account also the number of sows in each neighbouring patch (currently zero)
-    mutate(Probs=NeighbourCapacity+1) |>
-    slice_sample(n=1, weight_by=Probs) |>
+    mutate(Probs = NeighbourCapacity + 1) |>
+    slice_sample(n = 1, weight_by = Probs) |>
     pull(Direction) ->
     direction
 
