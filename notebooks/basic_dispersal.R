@@ -261,13 +261,10 @@ patches |>
   replace_na(list(Central = FALSE)) |>
   identity() ->
   patches
-#'
-#'
-patches
-ggplot(patches, aes(geometry=geometry, fill=BreedingCapacity)) +
+
+ggplot(patches, aes(geometry = geometry, fill = BreedingCapacity)) +
   geom_sf() +
-  geom_sf(data = patches |> filter(Central), fill="red") +
-  theme_void()
+  geom_sf(data = patches |> filter(Central), fill = "red")
 
 start_patch <- patches |> filter(Central) |> pull(Index)
 
