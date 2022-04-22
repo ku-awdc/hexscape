@@ -69,7 +69,14 @@ settle_hazard <- settle_rho * movements^(settle_rho-1) * exp(settle_intercept)
 plot(movements, settle_hazard, type="l")
 # You can see what happens to this by adjusting settle_rho to be <1, ==1, >1
 
-## TODO: decreased settling hazard if:
+# Settling rules:
+# if carrying capacity == 0:  
+settle_hazard <- 0  # Or equivalently, patch_attractivness_effect <- -Inf
+# otherwise:
+## Incorporate increased hazard if the patch is attractive:
+settle_hazard <- settle_rho * movements^(settle_rho-1) * exp(settle_intercept + patch_attractivness_effect)
+
+
 # The proposed patch has no spare breeding capacity (sows) or spare sows (boars)
 # The proposed patch has a zero carrying capacity
 
