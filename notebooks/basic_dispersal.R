@@ -150,6 +150,15 @@ patches
 #   tm_polygons("BreedingCapacity")
 patches %>%
   mutate(index_row_col = str_c(Index, ": (", r, ", ", q,")")) %>%
+  ggplot(.) +
+  geom_sf() +
+  geom_sf_text(aes(geometry = hex_centroid, label = index_row_col)) +
+  theme_void()
+
+patches
+
+patches %>%
+  mutate(index_row_col = str_c(Index, ": (", r, ", ", q,")")) %>%
   # tm_shape(bbox = st_bbox(c(xmin = -10, ymin = -10, xmax = 10, ymax = 10))) +
   tm_shape() +
   tm_polygons() +
