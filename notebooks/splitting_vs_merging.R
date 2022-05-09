@@ -35,9 +35,11 @@ split_prob <- ifelse(patch_breeding_females >= (mating_ratio * patch_breeding_ma
 plot(patch_breeding_males, split_prob, type = "s")
 
 
+##  Female splitting (group-level)
 ## Then we need to make a decision if splitting actually happens, e.g.:
 patch_capacity <- 10
 patch_breeding_females <- 20
+# repeating the female animal-level splitting probability
 split_prob <- ifelse(patch_capacity >= patch_breeding_females,
     0,
     plogis(f_split_int + f_split_coef * (patch_breeding_females - patch_capacity - 1L)) # NB: add 1 so that coef = 0 for 1 more pig
@@ -46,6 +48,7 @@ group_size <- rbinom(1, patch_breeding_females - patch_capacity, split_prob)
 # If the group_size is less than 2 then splitting does not happen, otherwise it has some relationship that we already worked out
 group_size <- 0:10
 group_prob <- pmin(1, pmax(0, log(group_size) / 2))
+# rbinom(1, 1, group_prob) # will the group actually splitting
 plot(group_size, group_prob, type = "s")
 
 
@@ -118,6 +121,26 @@ plot(movements, cumset, type = "l")
 cum_settle_hazard <- 1 - exp(exp(settle_intercept) * -((movements + 1)^settle_rho - movements^settle_rho))
 plot(movements, cum_settle_hazard, type = "s")
 
+settle_prob_distance <- function(elapsed_steps, settle_rho, settle_intercept) {
+    # stopifnot("total number of steps" = elapsed_steps > 0)
+    settle_scale <- exp(settle_intercept)^(-1 / settle_rho)
+    # (1):
+    # (pweibull(elapsed_steps, shape = settle_rho, scale = settle_scale) -
+    #     pweibull(elapsed_steps - 1, shape = settle_rho, scale = settle_scale)) /
+    #     (1 - pweibull(elapsed_steps - 1, shape = settle_rho, scale = settle_scale))
+    s <- elapsed_steps
+    lambda <- settle_scale
+    k <- settle_rho
+    # the following comes from (1), expanded with definition of weibull pdf, like so:
+    # ((1 - exp(-(elapsed_steps / settle_scale)^settle_rho)) -
+    #     ((1 - exp(-((elapsed_steps - 1L) / settle_scale)^settle_rho)))) /
+    #     (((exp(-((elapsed_steps - 1L) / settle_scale)^settle_rho))))
+    # reduced by wolfram-alpha, assumming all parameters are non-negative.
+    # 1 - e^(-(s/lambda)^k + (-1 + s)^k lambda^(-k))
+    1 - exp(-(s / lambda)**k + (s - 1)**k * lambda**(-k))
+}
+settle_prob_distance(elapsed_steps, settle_rho, settle_intercept)
+plot(1:50, settle_prob_distance(1:50, settle_rho = settle_rho, settle_intercept = settle_intercept), type = "l")
 
 ## Overall settling prob:
-settle_prob <- 1 - ((1 - settle_prob_attractive) * (1 - settle_prob_distance))
+settle_prob <- 1 - ((1 - settle_prob_attractive) * (1 - settle_prob_distance(elapsed_steps, settle_rho, settle_intercept)))
