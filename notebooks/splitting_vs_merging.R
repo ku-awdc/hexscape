@@ -118,7 +118,8 @@ for (i in 1:length(movements)) {
 }
 plot(movements, cumset, type = "l")
 
-cum_settle_hazard <- 1 - exp(exp(settle_intercept) * -((movements + 1)^settle_rho - movements^settle_rho))
+cum_settle_hazard <- 1 - exp(exp(settle_intercept) *
+    -((movements + 1)^settle_rho - movements^settle_rho))
 plot(movements, cum_settle_hazard, type = "s")
 
 settle_prob_distance <- function(elapsed_steps, settle_rho, settle_intercept) {
