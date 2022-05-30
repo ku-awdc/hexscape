@@ -1,12 +1,13 @@
-## TODO
-# Assume homogeneous grid
-# Get direction based on carrying-present+1 prob
-# Look at distribution of where they end up after 1 dispersal event
-# Parameters are baseline hazard and distance effect from Weibull
-# Translate vector to scalar distance
-# Add in possibility for increased mortality with distance
-# Animals don't stop if breeding capacity = 0
-# Less likely to stop if there is insufficient breeding space
+#' ## TODO
+#'
+#' Assume homogeneous grid
+#' Get direction based on carrying-present+1 prob
+#' Look at distribution of where they end up after 1 dispersal event
+#' Parameters are baseline hazard and distance effect from Weibull
+#' Translate vector to scalar distance
+#' Add in possibility for increased mortality with distance
+#' Animals don't stop if breeding capacity = 0
+#' Less likely to stop if there is insufficient breeding space
 
 library(HexScape)
 library(sf)
@@ -83,7 +84,7 @@ plot(movements, settle_hazard, type="l")
 # You can see what happens to this by adjusting settle_rho to be <1, ==1, >1
 
 # Settling rules:
-# if carrying capacity == 0:  
+# if carrying capacity == 0:
 settle_hazard <- 0  # Or equivalently, patch_attractivness_effect <- -Inf
 # otherwise:
 ## Incorporate increased hazard if the patch is attractive:
@@ -409,7 +410,11 @@ results |>
   mutate(Proportion = n / sum(n)) |>
   ungroup() |>
   select(Index = End, Direction, Proportion) |>
-  full_join(expand_grid(Index=unique(patches$Index), Direction=levels(direction)), by=c("Index", "Direction")) |>
+  full_join(expand_grid(
+    Index = unique(patches$Index),
+    Direction = levels(direction)
+  ),
+  by = c("Index", "Direction")) |>
   replace_na(list(Proportion = 0)) |>
   full_join(patches, by = "Index") ->
   plotres

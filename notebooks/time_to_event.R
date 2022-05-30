@@ -4,7 +4,7 @@ mean <- 50
 
 # Calculate parameters for Weibull:
 intercept <- (log(mean) - log(gamma(1 + 1 / rho))) * -rho
-scale <- exp(intercept)^(-1 / rho)
+scale <- exp(intercept)^ (-1 / rho)
 
 # Just needed for plotting:
 MaxT <- 200

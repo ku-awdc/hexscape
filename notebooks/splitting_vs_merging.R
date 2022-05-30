@@ -1,6 +1,6 @@
 ## Probability of splitting:
 
-### Splitting for females:
+### Splitting for females: ####
 
 patch_capacity <- 10
 patch_breeding_females <- 5:30
@@ -17,7 +17,7 @@ split_prob <- ifelse(patch_capacity >= patch_breeding_females,
 plot(patch_breeding_females, split_prob, type = "s")
 
 
-### Splitting for males:
+### Splitting for males: ####
 
 patch_breeding_females <- 10
 patch_breeding_males <- 1:10
@@ -34,9 +34,8 @@ split_prob <- ifelse(patch_breeding_females >= (mating_ratio * patch_breeding_ma
 
 plot(patch_breeding_males, split_prob, type = "s")
 
-
-##  Female splitting (group-level)
-## Then we need to make a decision if splitting actually happens, e.g.:
+## Female splitting (group-level) ####
+## Then we need to make a decision if splitting actually happens, e.g.: ####
 patch_capacity <- 10
 patch_breeding_females <- 20
 # repeating the female animal-level splitting probability
@@ -58,7 +57,7 @@ plot(group_size, group_prob, type = "s")
 
 # 1.  Based on attractiveness / spare capacity:
 
-### Settling for females
+### Settling for females ####
 
 patch_capacity <- 10
 patch_breeding_females <- 5:30
@@ -77,7 +76,7 @@ settle_prob_attractive <- ifelse(patch_capacity <= patch_breeding_females,
 plot(patch_breeding_females, settle_prob_attractive, type = "s")
 
 
-### Settling for males
+### Settling for males ####
 
 patch_breeding_females <- 20
 mating_ratio <- 5
@@ -96,9 +95,7 @@ settle_prob_attractive <- ifelse(patch_breeding_females <= (mating_ratio * patch
 
 plot(patch_breeding_males, settle_prob_attractive, type = "s")
 
-
-
-# 2.  Based on distance travelled:
+# 2.  Based on distance travelled: ####
 
 ## Note: this hazard stuff is broken, but the principle is correct ... and we can just replace it with a vector of probabilities anyway
 
