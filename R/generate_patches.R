@@ -120,6 +120,8 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     bind_rows() ->
   patches
 
+  browser()
+
   cat("Intersecting with the provided landscape...\n")
   patches %>%
     st_as_sf() %>%
@@ -173,6 +175,8 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     }) ->
     patches
   }
+
+  browser()
 
   ## Finish by removing the now obsolete patches and re-indexing:
   cat("Re-indexing hexagons...\n")
