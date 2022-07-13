@@ -6,7 +6,7 @@
 \alias{HexScape-package}
 \title{HexScape: Aggregation of Spatial Data into Hexagonal Patches using Simple Features}
 \description{
-What the package does (one paragraph).
+TODO
 }
 \author{
 \strong{Maintainer}: Matt Denwood \email{md@sund.ku.dk}

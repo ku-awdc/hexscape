@@ -12,6 +12,7 @@
 #'
 #' @import sf
 #' @importFrom rmapshaper ms_simplify
+#' @importFrom units as_units
 #'
 #' @examples
 #'
@@ -34,7 +35,7 @@
 #'
 #'
 #' @export
-generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE, reference_point=st_centroid(landscape), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
+generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE, reference_point=st_point(c(0,0)), land_use=NULL, add_removed=FALSE, min_prop = 0.01, simplify_keep=0.1){
 
   st <- Sys.time()
 
@@ -105,8 +106,9 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     mutate(x = refx + r*hexwth/2 + q*hexwth, xx=x) %>%
     # Filter out anything too far away from the lanscape:
     st_as_sf(coords=c("xx","yy")) %>%
+    st_set_crs(st_crs(landscape)) %>%
     mutate(dist = st_distance(geometry, landscape)[,1]) %>%
-    filter(dist < (hexhgt/1.9)) %>%
+    filter(dist < as_units(hexhgt/1.9, units(dist))) %>%
     as_tibble() %>%
     select(-dist)
 
