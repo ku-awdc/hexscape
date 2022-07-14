@@ -24,9 +24,9 @@ Imports:
     sf,
     rmapshaper,
     igraph,
-    pbapply
+    pbapply,
+    eurostat
 Suggests: 
-    eurostat,
     testthat (>= 3.0.0),
     knitr,
     markdown,

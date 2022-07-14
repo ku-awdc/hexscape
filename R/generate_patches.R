@@ -116,15 +116,13 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
   hexagons %>%
     mutate(Index = 1:n()) %>%
     split(.$Index) %>%
-    pblapply(function(.x) .x %>% mutate(geometry = genpoly(x, y), centroid = st_sfc(st_point(c(x,y))))) %>%
-    bind_rows() ->
+    pblapply(function(.x) .x %>% mutate(geometry = genpoly(x, y), centroid = st_sfc(st_point(c(x,y)), crs=st_crs(landscape)))) %>%
+    bind_rows() %>%
+    st_as_sf() ->
   patches
-
-  browser()
 
   cat("Intersecting with the provided landscape...\n")
   patches %>%
-    st_as_sf() %>%
     mutate(OK = st_intersects(geometry, landscape, sparse=FALSE)[,1]) %>%
     filter(OK) %>%
     mutate(geometry = st_intersection(geometry, landscape)) %>%
@@ -150,10 +148,11 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
 
     pblapply(seq_len(nrow(patches)), function(i){
 		ss <- try({
-			suppressWarnings(st_cast(st_difference(patches[i,], impassable), to="POLYGON"))
+			rv <- suppressWarnings(st_cast(st_difference(patches[i,], impassable), to="POLYGON"))
 		})
-		if(inherits(ss,"try-error")) browser()
+		if(inherits(ss,"try-error")) stop("An error occured")#browser()
       # NB: using st_difference allows categories to have lower resolution than the landscape
+		return(rv)
     }) ->
     patches
 
@@ -175,8 +174,6 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     }) ->
     patches
   }
-
-  browser()
 
   ## Finish by removing the now obsolete patches and re-indexing:
   cat("Re-indexing hexagons...\n")
@@ -226,7 +223,7 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
       pblapply(function(category){
         comb <- land_use %>%
           filter(Category == category) %>%
-          st_union() %>%
+          st_union(is_coverage=TRUE) %>%
           st_intersection(landscape) %>%
           ## Sometimes we get points - remove these:
           st_collection_extract("POLYGON") %>%
@@ -242,8 +239,6 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     # ggplot(relevant_land[[2]]) + geom_sf()+ coord_sf(xlim=c(500000, 550000), ylim=c(6100000, 6150000), crs= 25832, datum=sf::st_crs(25832))
 
     cat("Determining land use summaries...\n")
-
-    browser()
 
     make_chunks(which(!is.na(patches$Index))) %>%
       pblapply(function(ch){
@@ -273,7 +268,7 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
       replace_na(list(area = 0.0)) ->
     patch_land_use
 
-    stopifnot(all(na.omit(patches$Index) %in% patch_land_use$Index), nrow(patch_land_use) == (nrow(patches)-1)*length(relevant_land))
+    stopifnot(all(na.omit(patches$Index) %in% patch_land_use$Index), nrow(patch_land_use) == (nrow(patches)-as.integer(add_removed))*length(relevant_land))
 
     ## Some land area is lost due to simplification:
     patch_land_use %>%
@@ -321,6 +316,10 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     stopifnot(all(names(patch_land_use_wd)[1:2] == c("Index","area_sum")))
     names(patch_land_use_wd) <- c("Index","area_sum",str_c("LU_", names(patch_land_use_wd)[-(1:2)]))
 
+    if(!add_removed){
+      patch_land_use_wd <- patch_land_use_wd %>% filter(!is.na(Index))
+    }
+
     stopifnot(all(patches$Index %in% patch_land_use_wd$Index), nrow(patch_land_use_wd) == nrow(patches))
 
     patches <- patches %>%
@@ -343,7 +342,7 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
       apply(1,sum)
 
     # TODO: remove browser here
-    if(!isTRUE(all.equal(rep(1.0,length(checksum)), checksum))) browser()
+    if(!isTRUE(all.equal(rep(1.0,length(checksum)), checksum))) stop("An error occured")#browser()
     stopifnot(all.equal(rep(1.0,length(checksum)), checksum))
 
     if(FALSE){
