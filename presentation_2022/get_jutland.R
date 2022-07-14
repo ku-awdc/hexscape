@@ -59,7 +59,7 @@ patches <- generate_patches(map, hex_width=2000, land_use=land_use_denmark, name
 
 # Add carrying capacity:
 patches <- patches %>%
-  mutate(carrying_proportion = 1*LU_High + 0.5*LU_Medium + 0.1*LU_Passable) %>%
+  mutate(carrying_proportion = 1*LU_High + 0.5*LU_Medium + 0.1*LU_Low) %>%
   mutate(carrying_capacity = (25*carrying_proportion*area) / 3464102)
 # Max is 25 carrying_capacity for 3.5km2 at high LU suitability
 
@@ -70,11 +70,14 @@ library(sf)
 
 pigs %>% count(brugsart)
 pigs_using <- pigs %>%
-  select(x = staldkoordinat.x_koordinat, y = staldkoordinat.y_koordinat) %>%
+  filter((besstr_1501+besstr_1502+besstr_1504)>0L) %>%
+  select(brugsart, x = staldkoordinat.x_koordinat, y = staldkoordinat.y_koordinat) %>%
   st_as_sf(coords=c("x","y"), crs=st_crs(25832))  %>% # https://epsg.io/25832
   st_transform(st_crs(map)) %>%
   mutate(using = st_intersects(geometry, map, sparse=FALSE)[,1]) %>%
   filter(using)
+
+pigs_using %>% as_tibble() %>% count(brugsart)
 
 mtch <- st_nearest_feature(pigs_using$geometry, patches$geometry)
 stopifnot(length(mtch)==nrow(pigs_using))
@@ -110,7 +113,12 @@ neighbours <- generate_neighbours(patches, calculate_border=TRUE)
 
 ## 4) Generate neighbours:
 
+
+patches %>%
+  mutate(coords = asplit(st_coordinates(hex_centroid), 1)) %>%
+  unnest_wider(coords, "_") ->
+patches
+
 save(patches, neighbours, map, file="/Users/matthewdenwood/Documents/Research/Papers/Hexscape paper/patches_DK032.rda")
 
-
-
+(load("/Users/matthewdenwood/Documents/Research/Papers/Hexscape paper/patches_DK032.rda"))
