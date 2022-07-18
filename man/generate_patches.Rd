@@ -9,7 +9,7 @@ generate_patches(
   hex_width,
   name = "patch",
   name_index = TRUE,
-  reference_point = st_centroid(landscape),
+  reference_point = st_point(c(0, 0)),
   land_use = NULL,
   add_removed = FALSE,
   min_prop = 0.01,
