@@ -3,8 +3,8 @@ library("tidyverse")
 library("sf")
 
 ## Let's start with a square 50x50km landscape:
-xrange <- c(0, 50)
-yrange <- c(0, 50)
+xrange <- c(0, 6)
+yrange <- c(0, 7)
 corners <- tribble(~x, ~y,
                    xrange[1], yrange[1],
                    xrange[2], yrange[1],
@@ -16,8 +16,9 @@ landscape <- st_sfc(st_multipolygon(list(list(as.matrix(corners)))))
 ggplot(landscape) + geom_sf()
 
 ## Add the hexagons:
-patches <- generate_patches(landscape, hex_width=1)
-ggplot(patches) + geom_sf()
+patches_square <- generate_patches(landscape, hex_width=2)
+
+ggplot(patches_square) + geom_sf()
 
 
 ## We could also make it more interesting:
@@ -26,14 +27,22 @@ p2 <- rbind(c(10,10), c(10,20), c(20,20), c(10,10))
 landscape <- st_sfc(st_polygon(list(p1,p2)))
 ggplot(landscape) + geom_sf()
 
-patches <- generate_patches(landscape, hex_width=1)
-ggplot(patches) + geom_sf()
+patches_hole <- generate_patches(landscape, hex_width=8)
 
+ggplot(patches_hole) + geom_sf()
 
 ## Calculate neighbours:
-neighbours <- generate_neighbours(patches)
-neighbours
+neighbours_square <- generate_neighbours(patches_square)
+neighbours_hole <- generate_neighbours(patches_hole)
 
-## So if we are currently at Index number 431 then we have 3 neighbours but only 1 with a big border:
-ggplot(patches) + aes(col=Index==431) + geom_sf()
-neighbours %>% filter(Index==431)
+patches_square <- patches_square |>
+  mutate(carrying_capacity = 10, pig_farms = rpois(n(), 1))  |>
+  mutate(coords = asplit(st_coordinates(hex_centroid), 1)) |>
+  unnest_wider(coords, "_")
+
+patches_hole <- patches_hole |>
+  mutate(carrying_capacity = 10, pig_farms = rpois(n(), 1))  |>
+  mutate(coords = asplit(st_coordinates(hex_centroid), 1)) |>
+  unnest_wider(coords, "_")
+
+save(patches_square, patches_hole, neighbours_square, neighbours_hole, file="toy_patches.rda")
