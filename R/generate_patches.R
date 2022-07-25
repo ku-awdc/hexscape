@@ -100,6 +100,15 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
   #q <- seq(floor(xrange[1]-1), ceiling(xrange[2]+1))
   q_using <- seq(floor(xrange[1]), ceiling(xrange[2]))
 
+  filter_dist <- function(.data, dist){
+    if(inherits(.data$dist, "units")){
+      .data <- .data %>% filter(dist < as_units(hexhgt/1.9, units(dist)))
+    }else{
+      .data <- .data %>% filter(dist < hexhgt/1.9)
+    }
+    .data
+  }
+
   ## Then generate the centroids of the hexagons we need
   hexagons <- expand_grid(r=r_using, q=q_using) %>%
     mutate(y = refy - r*(hexlth+hexhgt)/2, yy=y) %>%
@@ -108,7 +117,7 @@ generate_patches <- function(landscape, hex_width, name="patch", name_index=TRUE
     st_as_sf(coords=c("xx","yy")) %>%
     st_set_crs(st_crs(landscape)) %>%
     mutate(dist = st_distance(geometry, landscape)[,1]) %>%
-    filter(dist < as_units(hexhgt/1.9, units(dist))) %>%
+    filter_dist(dist) %>%
     as_tibble() %>%
     select(-dist)
 
