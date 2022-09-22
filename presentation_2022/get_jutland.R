@@ -37,6 +37,11 @@ clc <- extract_clc() %>%
   arrange(Category, CLC_CODE)
 stopifnot(all(!is.na(clc$Category)))
 
+ggplot() +
+  geom_sf(data=map_dk) +
+  geom_sf(data=land_use_dk |> filter(CLC_LABEL1 == "Agricultural areas")) +
+  theme_void()
+
 land_use_denmark <- land_use_dk %>%
   left_join(clc %>% select(CLC_CODE, Category), by="CLC_CODE") %>%
   filter(CLC_LABEL1 != "Unknown") %>%
@@ -76,6 +81,11 @@ pigs_using <- pigs %>%
   st_transform(st_crs(map)) %>%
   mutate(using = st_intersects(geometry, map, sparse=FALSE)[,1]) %>%
   filter(using)
+
+ggplot() +
+  geom_sf(data=map_dk) +
+  geom_sf(data=pigs |> st_as_sf(coords=c("staldkoordinat.x_koordinat","staldkoordinat.y_koordinat"), crs=st_crs(25832))) +
+  theme_void()
 
 pigs_using %>% as_tibble() %>% count(brugsart)
 
