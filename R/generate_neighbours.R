@@ -112,15 +112,16 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
           area <- as.numeric(st_area(intsct), units="m")
           bdr <- (area - (buffer_dist*2)) / (buffer_dist*2)
 
-          lstr <- st_union(st_intersection(x$boundary, x$nb_boundary))
+          lstr <-
+            st_union(st_intersection(x$boundary, x$nb_boundary))
           # Not always true!!!
-          stopifnot(st_geometry_type(lstr)=="LINESTRING")
-          as.numeric(st_length(lstr), units="m")
+          stopifnot(st_geometry_type(lstr) == "LINESTRING")
+          as.numeric(st_length(lstr), units = "m")
 
           ggplot() +
-            geom_sf(data=patches %>% filter(Index %in% c(x$Index, x$Neighbour))) +
-            geom_sf(data=intsct, col="red") +
-            geom_sf(data=lstr, col="blue")
+            geom_sf(data = patches %>% filter(Index %in% c(x$Index, x$Neighbour))) +
+            geom_sf(data = intsct, col = "red") +
+            geom_sf(data = lstr, col = "blue")
 
         })
 

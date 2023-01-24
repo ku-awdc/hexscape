@@ -2,7 +2,7 @@
 
 ### Splitting for females: ####
 
-patch_capacity <- 10
+patch_capacity <- 10 # breeding capacity
 patch_breeding_females <- 5:30
 
 f_split_int <- qlogis(0.05)

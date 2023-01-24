@@ -1,4 +1,7 @@
-#' Title
+#' Ensure a path exists
+#'
+#' This creates directories (recursively) of the given path.
+#'
 #'
 #' @param path_to_file
 #'
