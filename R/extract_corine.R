@@ -1,4 +1,5 @@
-#' Extract land use data for a specific country
+#' @name load_corine
+#' @title Extract land use data for a specific country
 #'
 #' @param country_code
 #' @param nuts_year
@@ -6,9 +7,42 @@
 #' @importFrom pbapply pblapply pbsapply
 #' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection
 #'
-#' @export
-extract_corine <- function(country_code, refresh=FALSE, verbose=0L, ...){
 
+#' @rdname load_corine
+#' @export
+load_corine <- function(nuts_code, refresh=FALSE, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L, ...){
+
+  ## Start by checking the nuts_code (s) are valid NUTS0 or NUTS1
+
+  # Check there are either two characters or two characters plus character/number:
+  nuts_code <- c("1LL", "LL90","PP","P1","LL1")
+  valid <- str_detect(nuts_code, "^[[:ALPHA:]][[:ALPHA:]][[:ALPHA:][:digit:]]?") & str_length(nuts_code) %in% c(2,3)
+  if(any(!valid)) stop("The following nuts codes are in an invalid format: ", str_c(nuts_code[!valid], collapse=", "))
+
+  # Get map data for countries:
+  countries <- tibble(NC=nuts_code, CC=nuts_code |> str_sub(1,2))
+
+  countries |>
+    distinct(CC) |>
+    pull(CC) %>%
+    `names<-`(.,.) %>%
+    as.list() |>
+    lapply(function(cc){
+      ss <- try({
+        mm <- extract_map(cc, verbose=0L)
+      })
+      if(inherits(ss,"try-error")){
+        stop(cc, " does not seem to be a valid country code")
+      }
+      mm
+    }) ->
+  maps
+  names(maps) <- countries
+
+  extract_map("DK1")
+
+
+  browser()
   stopifnot(length(country_code)==1)
 
   storage_folder <- hexscape_getOption("storage_folder")
@@ -126,5 +160,86 @@ extract_corine <- function(country_code, refresh=FALSE, verbose=0L, ...){
     select(CNTR_CODE, NUTS_ID, CLC_CODE, CLC_LABEL1, CLC_LABEL2, CLC_LABEL3, everything())
 
   return(corine_sf)
+
+}
+
+
+#' @rdname load_corine
+#' @export
+extract_corine <- function(map, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L){
+
+  if(is.data.frame(map)){
+    mapsf <- st_union(map$geometry)
+  }else{
+    mapsf <- st_union(map)
+  }
+  # ggplot(mapsf) + geom_sf()
+
+  if(verbose > 1L) cat("Extracting information on layers and codes...\n", sep="")
+  layers <- st_layers(corine_path)
+  codes <- as.list(layers$name) %>%
+    `names<-`(.,.) %>%
+    map_df( ~
+              suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
+              `colnames<-`(., toupper(colnames(.)))
+            , .id="Layer") %>%
+    distinct(CODE_18) |>
+    arrange(CODE_18) |>
+    pull(CODE_18)
+
+  ## Then do the extraction:
+  st <- Sys.time()
+  get_corine_sf <- function(cc){
+
+    code <- codes[cc]
+    if(verbose > 2L){
+      cat("Extracting code ", code, " ... ", sep="")
+
+      ## hack:
+      retfun <- function(rv){
+        cat(round(cc/length(codes)*100), "% complete after ", round(as.numeric(Sys.time()-st, units="mins")), " minutes\n", sep="")
+        return(rv)
+      }
+    }else{
+      retfun <- function(rv) rv
+    }
+
+    ## First extract the code and filter to only those that intersect anything we are interested in:
+    obj <- layers$name %>%
+      `names<-`(.,.) %>%
+      as.list() %>%
+      lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
+      `[`(sapply(.,nrow)>0) %>%
+      lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
+      bind_rows()
+
+    if(nrow(obj)==0) return(retfun(NULL))
+
+    obj <- obj %>%
+      st_transform(st_crs(map)) %>%
+      mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) %>%
+      filter(use) %>%
+      select(-use)
+
+    if(nrow(obj)==0) return(retfun(NULL))
+    return(retfun(obj))
+  }
+
+  if(verbose > 1L) cat("Extracting land use data relating to ", length(codes), " CLC codes (this may take some time)...\n", sep="")
+
+  # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
+  if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
+  seq_along(codes) |>
+    afun(get_corine_sf) |>
+    bind_rows() |>
+    select(CLC_CODE = CODE_18, AREA_HA, Shape) ->
+    corine_raw
+
+  ## Add attributes for filename and map:
+  attr(corine_raw, "corine_path") <- corine_path
+  attr(corine_raw, "map") <- mapsf
+
+  if(verbose > 1L) cat("Done\n", sep="")
+  return(corine_raw)
 
 }

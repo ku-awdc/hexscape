@@ -19,15 +19,15 @@ extract_map <- function(country_code, nuts_year=2016, refresh=FALSE, verbose=1L)
   }
 
   if(verbose > 0L) cat("Extracting eurostat sf data for ", country_code, "...\n", sep="")
+  print("TODO: suppress output from function below")
   map <- get_eurostat_geospatial(output_class = "sf", resolution = "01", nuts_level = '3',
-                                 year = nuts_year, crs = "3035",
-                                 # Note: this projection avoids warnings from sf later on
-                                 # Note: cache_dir seems to be ignored??
-                                 cache_dir = file.path(storage_folder, "eurostat_cache")) %>%
+                                 year = nuts_year, crs = "4326",
+                                 cache_dir = file.path(storage_folder, "eurostat_cache"),
+                                 make_valid = TRUE) %>%
     filter(CNTR_CODE %in% country_code) %>%
     select(CNTR_CODE, NUTS_ID, NUTS_NAME, geometry)
 
-  stopifnot(nrow(map)>0)
+  if(nrow(map)==0L) stop(country_code, " does not seem to be a valid country code")
 
   saveRDS(map, savename, compress=TRUE)
 

@@ -6,9 +6,6 @@
 \usage{
 extract_clc()
 }
-\value{
-
-}
 \description{
 Title
 }
