@@ -10,12 +10,11 @@
 
 #' @rdname load_corine
 #' @export
-load_corine <- function(nuts_code, refresh=FALSE, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L, ...){
+load_corine <- function(nuts_code, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L, ...){
 
-  ## Start by checking the nuts_code (s) are valid NUTS0 or NUTS1
+  ## Start by checking the nuts_code(s) are valid NUTS0 or NUTS1
 
   # Check there are either two characters or two characters plus character/number:
-  nuts_code <- c("1LL", "LL90","PP","P1","LL1")
   valid <- str_detect(nuts_code, "^[[:ALPHA:]][[:ALPHA:]][[:ALPHA:][:digit:]]?") & str_length(nuts_code) %in% c(2,3)
   if(any(!valid)) stop("The following nuts codes are in an invalid format: ", str_c(nuts_code[!valid], collapse=", "))
 
@@ -28,36 +27,48 @@ load_corine <- function(nuts_code, refresh=FALSE, corine_path=file.path(hexscape
     `names<-`(.,.) %>%
     as.list() |>
     lapply(function(cc){
-      ss <- try({
-        mm <- extract_map(cc, verbose=0L)
-      })
-      if(inherits(ss,"try-error")){
-        stop(cc, " does not seem to be a valid country code")
-      }
-      mm
-    }) ->
+      load_map(cc, verbose=1L)
+    }) |>
+    bind_rows() ->
   maps
-  names(maps) <- countries
 
-  extract_map("DK1")
+  # Get a full list of NUTS1 codes and check validity:
+  maps |>
+    as_tibble() |>
+    mutate(N1=str_sub(NUTS_ID,1,3)) |>
+    distinct(CC=CNTR_CODE, N1) |>
+    left_join(
+      countries |> filter(NC==CC), by="CC"
+    ) |>
+    mutate(NC = if_else(is.na(NC), N1, NC)) |>
+    right_join(countries |> select(NC), by="NC") ->
+  countries
 
-
-  browser()
-  stopifnot(length(country_code)==1)
-
-  storage_folder <- hexscape_getOption("storage_folder")
-  clc <- extract_clc()
-
-  savename <- file.path(storage_folder, "processed_data", str_c("corine_", country_code, ".rds"))
-  if(!refresh && file.exists(savename)){
-    if(verbose > 1L) cat("Returning cached corine data for ", country_code, "...\n", sep="")
-
-    corine_sf <- readRDS(savename) %>%
-      left_join(clc, by="CLC_CODE") %>%
-      select(CNTR_CODE, NUTS_ID, CLC_CODE, CLC_LABEL1, CLC_LABEL2, CLC_LABEL3, everything())
-
-    return(corine_sf)
+  if(any(is.na(countries$N1))){
+    stop("The following nuts codes appear to be invalid: ", str_c(countries |> filter(is.na(N1)) |> pull(NC), collapse=", "))
   }
+
+
+  ## Then do the extraction per NUTS1 code:
+  storage_folder <- hexscape_getOption("storage_folder")
+
+  countries |>
+    distinct(CC, N1) |>
+    group_by(CC, N1) |>
+    group_split() |>
+    lapply(function(cc){
+      nuts_code <- cc[["N1"]]
+
+      savename <- file.path(storage_folder, "processed_data", str_c("corine_", nuts_code, ".rds"))
+      if(file.exists(savename)){
+        if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, "...\n", sep="")
+        return(readRDS(savename))
+      }
+
+      ## Then filter the right nuts_codes from the map and st_union then pass to extract_corine
+      # NB
+
+    })
 
   map <- extract_map(country_code=country_code, refresh=refresh, verbose=verbose, ...)
 

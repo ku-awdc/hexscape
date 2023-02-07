@@ -6,9 +6,13 @@
 #'
 #' @importFrom eurostat get_eurostat_geospatial
 #' @export
-extract_map <- function(country_code, nuts_year=2016, refresh=FALSE, verbose=1L){
+load_map <- function(country_code, nuts_year=2016, verbose=1L){
 
   stopifnot(length(country_code)==1)
+  refresh <- FALSE
+
+  valid <- str_detect(country_code, "^[[:ALPHA:]][[:ALPHA:]]") & str_length(country_code) %in% c(2)
+  if(any(!valid)) stop("The following country codes are in an invalid format: ", str_c(country_code[!valid], collapse=", "))
 
   storage_folder <- hexscape_getOption("storage_folder")
 
@@ -19,11 +23,15 @@ extract_map <- function(country_code, nuts_year=2016, refresh=FALSE, verbose=1L)
   }
 
   if(verbose > 0L) cat("Extracting eurostat sf data for ", country_code, "...\n", sep="")
-  print("TODO: suppress output from function below")
+
+  suppressMessages({
   map <- get_eurostat_geospatial(output_class = "sf", resolution = "01", nuts_level = '3',
                                  year = nuts_year, crs = "4326",
                                  cache_dir = file.path(storage_folder, "eurostat_cache"),
-                                 make_valid = TRUE) %>%
+                                 make_valid = TRUE)
+  })
+
+  map <- map %>%
     filter(CNTR_CODE %in% country_code) %>%
     select(CNTR_CODE, NUTS_ID, NUTS_NAME, geometry)
 

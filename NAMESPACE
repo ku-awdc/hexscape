@@ -2,12 +2,12 @@
 
 export(extract_clc)
 export(extract_corine)
-export(extract_map)
 export(generate_neighbours)
 export(generate_patches)
 export(hexscape_getOption)
 export(hexscape_options)
 export(load_corine)
+export(load_map)
 export(set_storage_folder)
 import(sf)
 importFrom(eurostat,get_eurostat_geospatial)
