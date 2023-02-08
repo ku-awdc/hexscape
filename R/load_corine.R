@@ -291,7 +291,8 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
 
   # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
   if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
-  seq_along(codes) |>
+  length(codes) |>
+    sample.int() |>
     afun(get_corine_sf) |>
     bind_rows() |>
     mutate(Shape = st_intersection(Shape, mapsf)) |>
@@ -306,6 +307,7 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
     summarise(Area = sum(Area),
               geometry = st_union(Shape),
               .groups="drop") |>
+    arrange(CLC) |>
     mutate(geometry = ms_simplify(geometry, keep=simplify_keep) |> st_make_valid()) |>
     mutate(Area_simplified = st_area(geometry) |> set_units(km^2) |> as.numeric()) |>
     select(CLC, Area, Area_simplified, geometry) ->
