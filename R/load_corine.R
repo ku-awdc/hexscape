@@ -61,7 +61,10 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
 
   countries |>
     distinct(CC, N1) |>
+    mutate(Savename = file.path(storage_folder, "processed_data", str_c("corine_", N1, ".rqs")), Exists=file.exists(Savename)) |>
+    group_by(Exists) |>
     mutate(Row = 1:n(), NRow = max(Row)) |>
+    ungroup() |>
     group_by(CC, N1) |>
     group_split() |>
     lapply(function(cc){
@@ -70,9 +73,9 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
       nuts_code <- cc[["N1"]]
       country_code <- cc[["CC"]]
 
-      savename <- file.path(storage_folder, "processed_data", str_c("corine_", nuts_code, ".rqs"))
+      savename <- cc[["Savename"]]
       if(file.exists(savename)){
-        if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, " (", cc[["Row"]], " of ", cc[["NRow"]], ")...\n", sep="")
+        if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, "\n", sep="")
         return(qread(savename))
       }
 
@@ -92,16 +95,25 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
       nc
       })
 
-      if(inherits(ss, "try-error")) browser()
+      # If there was a problem then log it and continue:
+      if(inherits(ss, "try-error")){
+        warning(str_c("Extracting corine data for ", nuts_code, " failed"))
+        return(NULL)
+      }
 
       # Then save the result:
       qsave(nc, savename)
 
       # And return:
       return(nc)
-    }) |>
-    bind_rows() ->
+    }) ->
   all_corine
+
+  if(any(lapply(all_corine, is.null))){
+    stop("One or more nuts_code could not be extracted from the data")
+  }
+
+  all_corine <- bind_rows(all_corine)
 
   ## Either merge with a custom CLC key and do st_union or try to load CLC labels
   if(is.null(clc_key)){
@@ -306,6 +318,7 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
   attr(corine_simplified, "corine_path") <- corine_path
   attr(corine_simplified, "map") <- mapsf
   attr(corine_simplified, "simplify_keep") <- simplify_keep
+  attr(corine_simplified, "version") <- hexscape_version()
 
   if(verbose > 1L) cat("Done\n", sep="")
   return(corine_simplified)

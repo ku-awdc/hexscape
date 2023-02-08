@@ -6,3 +6,5 @@
 ## usethis namespace: start
 ## usethis namespace: end
 NULL
+
+hexscape_version <- function() packageVersion("HexScape")

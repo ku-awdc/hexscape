@@ -38,6 +38,9 @@ load_map <- function(country_code, nuts_year=2016, verbose=1L){
     filter(CNTR_CODE %in% country_code) %>%
     select(CNTR_CODE, NUTS_ID, NUTS_NAME, geometry)
 
+  attr(map, "nuts_year") <- nuts_year
+  attr(map, "version") <- hexscape_version()
+
   if(nrow(map)==0L) stop(country_code, " does not seem to be a valid country code")
 
   qsave(map, savename)
