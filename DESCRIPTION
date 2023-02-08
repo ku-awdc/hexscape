@@ -25,7 +25,9 @@ Imports:
     rmapshaper,
     igraph,
     pbapply,
-    eurostat
+    eurostat,
+    units,
+    qs (>= 0.25)
 Suggests: 
     testthat (>= 3.0.0),
     knitr,

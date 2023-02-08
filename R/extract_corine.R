@@ -1,27 +1,21 @@
 #' @name load_corine
 #' @title Extract land use data for a specific country
 #'
-#' @param nuts_code
-#' @param clc_key
-#' @param corine_path
-#' @param verbose
-#' @param map
-#' @param simplify_keep passed on to \code{\link[rmapshaper]{ms_simplify}}
+#' @param country_code
+#' @param nuts_year
 #'
 #' @importFrom pbapply pblapply pbsapply
-#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid
-#' @importFrom rmapshaper ms_simplify
-#' @importFrom units set_units
-#' @importFrom qs qsave qread
+#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection
 #'
 
 #' @rdname load_corine
 #' @export
-load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L, ...){
+load_corine <- function(nuts_code, refresh=FALSE, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L, ...){
 
-  ## Start by checking the nuts_code(s) are valid NUTS0 or NUTS1
+  ## Start by checking the nuts_code (s) are valid NUTS0 or NUTS1
 
   # Check there are either two characters or two characters plus character/number:
+  nuts_code <- c("1LL", "LL90","PP","P1","LL1")
   valid <- str_detect(nuts_code, "^[[:ALPHA:]][[:ALPHA:]][[:ALPHA:][:digit:]]?") & str_length(nuts_code) %in% c(2,3)
   if(any(!valid)) stop("The following nuts codes are in an invalid format: ", str_c(nuts_code[!valid], collapse=", "))
 
@@ -34,80 +28,36 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
     `names<-`(.,.) %>%
     as.list() |>
     lapply(function(cc){
-      load_map(cc, verbose=1L)
-    }) |>
-    bind_rows() ->
-  maps
-
-  # Get a full list of NUTS1 codes and check validity:
-  if(verbose > 1L) cat("Checking validity of NUTS codes provided...\n", sep="")
-  maps |>
-    as_tibble() |>
-    mutate(N1=str_sub(NUTS_ID,1,3)) |>
-    distinct(CC=CNTR_CODE, N1) |>
-    left_join(
-      countries |> filter(NC==CC), by="CC"
-    ) |>
-    mutate(NC = if_else(is.na(NC), N1, NC)) |>
-    right_join(countries |> select(NC), by="NC") ->
-  countries
-
-  if(any(is.na(countries$N1))){
-    stop("The following nuts codes appear to be invalid: ", str_c(countries |> filter(is.na(N1)) |> pull(NC), collapse=", "))
-  }
-
-  ## Then do the extraction per NUTS1 code:
-  storage_folder <- hexscape_getOption("storage_folder")
-
-  countries |>
-    distinct(CC, N1) |>
-    mutate(Row = 1:n(), NRow = max(Row)) |>
-    group_by(CC, N1) |>
-    group_split() |>
-    lapply(function(cc){
-
-      stopifnot(nrow(cc)==1L)
-      nuts_code <- cc[["N1"]]
-      country_code <- cc[["CC"]]
-
-      savename <- file.path(storage_folder, "processed_data", str_c("corine_", nuts_code, ".rqs"))
-      if(file.exists(savename)){
-        if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, " (", cc[["Row"]], " of ", cc[["NRow"]], ")...\n", sep="")
-        return(qread(savename))
-      }
-
-      if(verbose > 0L) cat("Processing corine data for ", nuts_code, " (", cc[["Row"]], " of ", cc[["NRow"]], ")...\n", sep="")
-
       ss <- try({
-      ## Then filter the right nuts_codes from the map:
-      nm <- maps |>
-        filter(str_sub(NUTS_ID, 1L, 3L) == nuts_code) |>
-        pull(geometry) |>
-        st_union()
-
-      # Then pass to extract_corine and add the NUTS and country codes:
-      extract_corine(nm, corine_path=corine_path, verbose=verbose) |>
-        mutate(Country = country_code, NUTS1 = nuts_code) |>
-        select(Country, NUTS1, everything()) ->
-      nc
+        mm <- extract_map(cc, verbose=0L)
       })
+      if(inherits(ss,"try-error")){
+        stop(cc, " does not seem to be a valid country code")
+      }
+      mm
+    }) ->
+  maps
+  names(maps) <- countries
 
-      if(inherits(ss, "try-error")) browser()
+  extract_map("DK1")
 
-      # Then save the result:
-      qsave(nc, savename)
 
-      # And return:
-      return(nc)
-    }) |>
-    bind_rows() ->
-  all_corine
-
-  ## Either merge with a custom CLC key and do st_union or try to load CLC labels
-  if(is.null(clc_key)){
-
-  }
   browser()
+  stopifnot(length(country_code)==1)
+
+  storage_folder <- hexscape_getOption("storage_folder")
+  clc <- extract_clc()
+
+  savename <- file.path(storage_folder, "processed_data", str_c("corine_", country_code, ".rds"))
+  if(!refresh && file.exists(savename)){
+    if(verbose > 1L) cat("Returning cached corine data for ", country_code, "...\n", sep="")
+
+    corine_sf <- readRDS(savename) %>%
+      left_join(clc, by="CLC_CODE") %>%
+      select(CNTR_CODE, NUTS_ID, CLC_CODE, CLC_LABEL1, CLC_LABEL2, CLC_LABEL3, everything())
+
+    return(corine_sf)
+  }
 
   map <- extract_map(country_code=country_code, refresh=refresh, verbose=verbose, ...)
 
@@ -216,7 +166,7 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
 
 #' @rdname load_corine
 #' @export
-extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L){
+extract_corine <- function(map, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"), verbose=1L){
 
   if(is.data.frame(map)){
     mapsf <- st_union(map$geometry)
@@ -282,32 +232,14 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
   seq_along(codes) |>
     afun(get_corine_sf) |>
     bind_rows() |>
-    mutate(Shape = st_intersection(Shape, mapsf)) |>
-    mutate(Area = st_area(Shape) |> set_units(km^2) |> as.numeric()) |>
-    select(CLC = CODE_18, Area, Shape) ->
+    select(CLC_CODE = CODE_18, AREA_HA, Shape) ->
     corine_raw
 
-  ## Union by CLC type and simplify:
-  if(verbose > 1L && simplify_keep < 1.0) cat("Simplifying polygons...\n", sep="")
-  corine_raw |>
-    group_by(CLC) |>
-    summarise(Area = sum(Area),
-              geometry = st_union(Shape),
-              .groups="drop") |>
-    mutate(geometry = ms_simplify(geometry, keep=simplify_keep) |> st_make_valid()) |>
-    mutate(Area_simplified = st_area(geometry) |> set_units(km^2) |> as.numeric()) |>
-    select(CLC, Area, Area_simplified, geometry) ->
-  corine_simplified
-
-  # ggplot(corine_raw, aes(geometry=Shape, fill=CLC)) + geom_sf(lwd=0, color=NA) + theme_void() + theme(legend.pos="none")
-  # ggplot(corine_simplified, aes(geometry=geometry, fill=CLC)) + geom_sf(lwd=0, color=NA) + theme_void() + theme(legend.pos="none")
-
   ## Add attributes for filename and map:
-  attr(corine_simplified, "corine_path") <- corine_path
-  attr(corine_simplified, "map") <- mapsf
-  attr(corine_simplified, "simplify_keep") <- simplify_keep
+  attr(corine_raw, "corine_path") <- corine_path
+  attr(corine_raw, "map") <- mapsf
 
   if(verbose > 1L) cat("Done\n", sep="")
-  return(corine_simplified)
+  return(corine_raw)
 
 }

@@ -2,9 +2,11 @@
 #'
 #' @param country_code
 #' @param nuts_year
-#' @param refresh
+#' @param verbose
 #'
 #' @importFrom eurostat get_eurostat_geospatial
+#' @importFrom purrr quietly
+#'
 #' @export
 load_map <- function(country_code, nuts_year=2016, verbose=1L){
 
@@ -16,20 +18,21 @@ load_map <- function(country_code, nuts_year=2016, verbose=1L){
 
   storage_folder <- hexscape_getOption("storage_folder")
 
-  savename <- file.path(storage_folder, "eurostat_cache", str_c("map_", country_code, ".rds"))
+  savename <- file.path(storage_folder, "eurostat_cache", str_c("map_", country_code, ".rqs"))
   if(!refresh && file.exists(savename)){
     if(verbose > 1L) cat("Returning cached eurostat sf data for ", country_code, "...\n", sep="")
-    return(readRDS(savename))
+    return(qread(savename))
   }
 
   if(verbose > 0L) cat("Extracting eurostat sf data for ", country_code, "...\n", sep="")
 
-  suppressMessages({
-  map <- get_eurostat_geospatial(output_class = "sf", resolution = "01", nuts_level = '3',
+  qf <- quietly(get_eurostat_geospatial)
+  qf(output_class = "sf", resolution = "01", nuts_level = '3',
                                  year = nuts_year, crs = "4326",
                                  cache_dir = file.path(storage_folder, "eurostat_cache"),
-                                 make_valid = TRUE)
-  })
+                                 make_valid = TRUE)[["result"]] |>
+    st_make_valid() ->
+    map
 
   map <- map %>%
     filter(CNTR_CODE %in% country_code) %>%
@@ -37,7 +40,7 @@ load_map <- function(country_code, nuts_year=2016, verbose=1L){
 
   if(nrow(map)==0L) stop(country_code, " does not seem to be a valid country code")
 
-  saveRDS(map, savename, compress=TRUE)
+  qsave(map, savename)
 
   return(map)
 

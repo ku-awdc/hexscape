@@ -7,7 +7,7 @@
 load_map(country_code, nuts_year = 2016, verbose = 1L)
 }
 \arguments{
-\item{refresh}{}
+\item{verbose}{}
 }
 \description{
 Title
