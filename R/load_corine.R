@@ -62,6 +62,7 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
   countries |>
     distinct(CC, N1) |>
     mutate(Savename = file.path(storage_folder, "processed_data", str_c("corine_", N1, ".rqs")), Exists=file.exists(Savename)) |>
+    arrange(CC, N1) |>
     group_by(Exists) |>
     mutate(Row = 1:n(), NRow = max(Row)) |>
     ungroup() |>
@@ -109,7 +110,7 @@ load_corine <- function(nuts_code, clc_key=NULL, corine_path=file.path(hexscape_
     }) ->
   all_corine
 
-  if(any(lapply(all_corine, is.null))){
+  if(any(sapply(all_corine, is.null))){
     stop("One or more nuts_code could not be extracted from the data")
   }
 
@@ -294,7 +295,11 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
   length(codes) |>
     sample.int() |>
     afun(get_corine_sf) |>
-    bind_rows() |>
+    bind_rows() ->
+  cr
+
+  ss <- try({
+  cr |>
     mutate(Shape = st_intersection(Shape, mapsf)) |>
     mutate(Area = st_area(Shape) |> set_units(km^2) |> as.numeric()) |>
     select(CLC = CODE_18, Area, Shape) ->
@@ -308,10 +313,16 @@ extract_corine <- function(map, simplify_keep=0.1, corine_path=file.path(hexscap
               geometry = st_union(Shape),
               .groups="drop") |>
     arrange(CLC) |>
-    mutate(geometry = ms_simplify(geometry, keep=simplify_keep) |> st_make_valid()) |>
+    mutate(geometry = ms_simplify(geometry, keep=simplify_keep, keep_shapes=TRUE) |> st_make_valid()) |>
     mutate(Area_simplified = st_area(geometry) |> set_units(km^2) |> as.numeric()) |>
     select(CLC, Area, Area_simplified, geometry) ->
   corine_simplified
+
+  })
+  if(inherits(ss, "try-error")){
+    save(mapsf, cr, simplify_keep, file=runjags::new_unique("~/Desktop/corine_failed", "rda"))
+    stop("Problem - output saved")
+  }
 
   # ggplot(corine_raw, aes(geometry=Shape, fill=CLC)) + geom_sf(lwd=0, color=NA) + theme_void() + theme(legend.pos="none")
   # ggplot(corine_simplified, aes(geometry=geometry, fill=CLC)) + geom_sf(lwd=0, color=NA) + theme_void() + theme(legend.pos="none")
