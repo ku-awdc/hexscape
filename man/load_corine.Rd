@@ -3,10 +3,12 @@
 \name{load_corine}
 \alias{load_corine}
 \alias{extract_corine}
+\alias{cache_all_corine}
 \title{Extract land use data for a specific country}
 \usage{
 load_corine(
   nuts_code,
+  clc_key = NULL,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L,
@@ -15,14 +17,22 @@ load_corine(
 
 extract_corine(
   map,
-  simplify_keep = 0.1,
+  simplify_keep = 0.2,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L
 )
 
+cache_all_corine(
+  corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
+    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
+  nuts_year = 2016,
+  verbose = 1L
+)
+
 load_corine(
   nuts_code,
+  clc_key = NULL,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L,
@@ -31,7 +41,7 @@ load_corine(
 
 extract_corine(
   map,
-  simplify_keep = 0.1,
+  simplify_keep = 0.2,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L

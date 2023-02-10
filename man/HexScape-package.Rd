@@ -4,7 +4,7 @@
 \name{HexScape-package}
 \alias{HexScape}
 \alias{HexScape-package}
-\title{HexScape: Aggregation of Spatial Data into Hexagonal Patches using Simple Features}
+\title{HexScape: Aggregation of Spatial Data into Discrete Patches using Simple Features}
 \description{
 TODO
 }
@@ -14,6 +14,7 @@ TODO
 Authors:
 \itemize{
   \item Mossa Merhi \email{mossa@sund.ku.dk}
+  \item Carlijn Bogaardt \email{Carlijn.Bogaardt@glasgow.ac.uk}
 }
 
 }
