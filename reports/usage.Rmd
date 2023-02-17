@@ -9,16 +9,102 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Introduction
+
+The HexScape package has a number of uses:
+
+1. Facilitate use of vectorised spatial data for EU/EEA countries, and/or regions/areas (as defined by NUTS1/2/3) of these countries
+
+2. Facilitate use of additional vectorised spatial data on parishes, kommune and postcodes for Denmark
+
+3. Subdivision of the above spatial data into `patches' based on either polygons of arbitrary size, or Voronoi tessellation around points of interest supplied by the user
+
+4. Facilitate use of Corine land usage data for EU/EEA countries (or regions/areas thereof) and aggregation of different land cover types within the spatial areas and/or patches defined above
+
+The data comes from a combination of Eurostat, Corine, and other sources - all of which is freely available online.  Much of the internal functionality is provided by the sf package.
+
+
 ## Installation
 
-The package isn't on CRAN, but the most recent stable (ish) version can be installed from our drat repository:
+The package isn't on CRAN (yet?), but the most recent stable (ish) version can be installed from our drat repository using:
 
-```{r}
+```{r eval=FALSE}
 
 ```
 
+Or, for the most recent (but even less stable) version you can install from GitHub:
 
-## 
+```{r eval=FALSE}
+
+```
+
+Then you should be able to load the package:
+
+```{r}
+library("HexScape")
+```
+
+Note that this also currently loads tidyverse, as that is what I used to develop the package, and I was too lazy to import everything properly. At some point, this will change, so it is probably best to explicitly load tidyverse as well:
+
+```{r}
+library("tidyverse")
+```
+
+(Unless of course you don't use tidyverse, in which case you should probably read https://r4ds.had.co.nz/index.html a couple more times)
+
+
+## Setup
+
+The HexScape package makes heavy use of local caching, as most of the spatial operations take quite a long time to process.  So, the first step is to create a folder somewhere on your hard drive (NOT a network storage drive) to/from which files can be saved/loaded. Then run the following code:
+
+```{r echo=FALSE}
+path_to_folder <- tempdir()
+```
+
+```{r}
+set_storage_folder(path_to_folder)
+```
+
+You should now see that HexScape has created some subfolders:
+
+```{r}
+list.files(path_to_folder)
+```
+
+This storage folder needs to be set every time you load HexScape.  To avoid having to do this manually, you can put the following code in your .Rprofile:
+
+```{r eval=FALSE}
+## To open your .Rprofile try:
+usethis::edit_r_profile()
+
+## Then add the following to the bottom of that file:
+Sys.setenv("HEXSCAPE_STORAGE"="/path/to/folder")
+# [obviously replacing /path/to/folder with your path]
+```
+
+That way, the storage folder will be set for you automatically when HexScape is loaded.
+
+```{r echo=FALSE}
+set_storage_folder(Sys.getenv("HEXSCAPE_STORAGE"))
+unlink(path_to_folder, recursive=TRUE)
+```
+
+## Corine data
+
+HexScape uses Corine Land Cover (CLC) data as the raw underlying data for land usage.  To use this, you need to download the SQLite Database from here:  https://land.copernicus.eu/pan-european/corine-land-cover/clc2018?tab=download
+
+You will first need to register an account and log in, but it is free to do so.
+
+Once the file has downloaded (beware:  it is 3.5GB) you can un-zip it and hopefully end up with a folder named u2018_clc2018_v2020_20u1_geoPackage - move (or copy/symlink if you prefer) this folder inside the raw_data folder that you set up above.  Make sure to keep the name of the folder exactly as it is above.
+
+## Basic maps
+
+
+
+
+
+
+
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 

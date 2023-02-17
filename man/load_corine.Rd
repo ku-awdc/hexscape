@@ -8,40 +8,38 @@
 \usage{
 load_corine(
   nuts_code,
-  clc_key = NULL,
-  corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
-    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
+  union = FALSE,
   verbose = 1L,
-  ...
+  corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
+    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")
 )
 
 extract_corine(
   map,
-  simplify_keep = 0.2,
+  simplify_keep = 0.25,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L
 )
 
 cache_all_corine(
+  exclude = character(0),
+  verbose = 1L,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
-    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
-  nuts_year = 2016,
-  verbose = 1L
+    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")
 )
 
 load_corine(
   nuts_code,
-  clc_key = NULL,
-  corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
-    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
+  union = FALSE,
   verbose = 1L,
-  ...
+  corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
+    "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")
 )
 
 extract_corine(
   map,
-  simplify_keep = 0.2,
+  simplify_keep = 0.25,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"),
   verbose = 1L

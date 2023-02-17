@@ -2,13 +2,13 @@
 % Please edit documentation in R/load_map.R
 \name{load_map}
 \alias{load_map}
-\title{Title}
+\title{Extract a map for given country or NUTS area code}
 \usage{
-load_map(country_code, nuts_year = 2016, verbose = 1L)
+load_map(nuts_code, nuts_label, verbose = 1L)
 }
 \arguments{
 \item{verbose}{}
 }
 \description{
-Title
+Extract a map for given country or NUTS area code
 }
