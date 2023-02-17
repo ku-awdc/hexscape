@@ -21,24 +21,7 @@
 cache_all_corine <- function(exclude = character(0), verbose=1L, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")){
 
   ## Get all NUTS1 codes:
-  if(verbose > 0L) cat("Extracting all available NUTS1 codes...\n", sep="")
-  qf <- quietly(get_eurostat_geospatial)
-  qf(output_class = "sf", resolution = "01", nuts_level = '3',
-     year = nuts_year, crs = "4326",
-     cache_dir = file.path(hexscape_getOption("storage_folder"), "eurostat_cache"),
-     make_valid = TRUE)[["result"]] |>
-    st_make_valid() ->
-    map
-
-  map |>
-    as_tibble() |>
-    mutate(NUTS1 = str_sub(NUTS_ID, 1, 3)) |>
-    distinct(CNTR_CODE, NUTS1) |>
-    arrange(CNTR_CODE, NUTS1) |>
-    ## Remove NUTS1 areas that are not in corine:
-    filter(!NUTS1 %in% nuts1_no_corine) |>
-    pull(NUTS1) ->
-  nuts1
+  nuts_codes |> filter(Level==1, !NUTS %in% nuts1_no_corine) |> pull(NUTS) -> nuts1
 
   ## Excludes:
   exclmtch <- vapply(toupper(exclude), function(x) str_detect(nuts1, x), logical(length(nuts1)))
