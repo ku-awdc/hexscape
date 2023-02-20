@@ -29,13 +29,14 @@ The data comes from a combination of Eurostat, Corine, and other sources - all o
 The package isn't on CRAN (yet?), but the most recent stable (ish) version can be installed from our drat repository using:
 
 ```{r eval=FALSE}
-
+install.packages("hexscape", repos=c(CRAN = "https://cran.rstudio.com/", 
+                            `ku-awdc` = "https://ku-awdc.github.io/drat/"))
 ```
 
 Or, for the most recent (but even less stable) version you can install from GitHub:
 
 ```{r eval=FALSE}
-
+remotes::install_github("ku-awdc/hexscape")
 ```
 
 Then you should be able to load the package:
@@ -88,6 +89,8 @@ That way, the storage folder will be set for you automatically when HexScape is 
 set_storage_folder(Sys.getenv("HEXSCAPE_STORAGE"))
 unlink(path_to_folder, recursive=TRUE)
 ```
+
+## https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts#nuts16
 
 ## Corine data
 

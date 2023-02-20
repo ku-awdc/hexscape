@@ -9,7 +9,7 @@
 #' @param simplify_keep passed on to \code{\link[rmapshaper]{ms_simplify}}
 #'
 #' @importFrom pbapply pblapply pbsapply
-#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid st_is_valid st_dimension
+#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid st_is_valid st_dimension st_as_sf st_centroid
 #' @importFrom rmapshaper ms_simplify
 #' @importFrom units set_units
 #' @importFrom qs qsave qread
@@ -18,10 +18,25 @@
 
 #' @rdname load_corine
 #' @export
-cache_all_corine <- function(exclude = character(0), verbose=1L, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")){
+cache_all_corine <- function(exclude = character(0), randomise=FALSE, verbose=1L, corine_path=file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")){
+
+
+  ## Get all maps:
+  cat("Loading all maps...\n")
+  nuts_codes |>
+    filter(Level==0) |>
+    pull(NUTS) |>
+    as.list() |>
+    pblapply(load_map, verbose=0L) ->
+  maps_unused
 
   ## Get all NUTS1 codes:
   nuts_codes |> filter(Level==1, !NUTS %in% nuts1_no_corine) |> pull(NUTS) -> nuts1
+
+  ## Randomise if necessary:
+  if(randomise){
+    nuts1 <- nuts1[sample.int(length(nuts1))]
+  }
 
   ## Excludes:
   exclmtch <- vapply(toupper(exclude), function(x) str_detect(nuts1, x), logical(length(nuts1)))
@@ -31,6 +46,7 @@ cache_all_corine <- function(exclude = character(0), verbose=1L, corine_path=fil
   nuts1 <- nuts1[!apply(exclmtch,1,any)]
 
   ## Then run load_corine for everything:
+  cat("Loading all corine data...\n")
   load_corine(nuts1, union=TRUE, verbose=verbose, corine_path=corine_path)
 
   invisible(NULL)
@@ -90,7 +106,7 @@ load_corine <- function(nuts_code, union=FALSE, verbose=1L, corine_path=file.pat
       savename <- cc[["Savename"]]
       if(file.exists(savename)){
         nc <- qread(savename)
-        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.0")){
+        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.2")){
           if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, "\n", sep="")
           cache_ok <- TRUE
         }else{
