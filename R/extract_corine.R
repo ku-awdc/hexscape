@@ -25,6 +25,7 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
   stopifnot(isTRUE(use_cache) || isFALSE(use_cache))
   if(use_cache){
 
+    clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
     cache_ok <- validate_corine_cache()
 
     if(!cache_ok){
@@ -267,6 +268,7 @@ validate_corine_cache <- function(){
 regenerate_corine_cache <- function(verbose=1L){
 
   corine_path <- file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")
+  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
 
   if(verbose > 1L) cat("Extracting information on layers and codes...\n", sep="")
   layers <- st_layers(corine_path)

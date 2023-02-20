@@ -166,7 +166,10 @@ ggplot(dk_corine, aes(fill=CLC)) + geom_sf(lwd=0, colour=NA) + theme_void() + th
 Processing takes between 5-15 mins per NUTS1 area on my arm64 laptop (and at least double that on my trusty old Xeon desktop)...
 
 
-
+```{r}
+dk_corine <- load_corine("DK032")
+ggplot(dk_corine, aes(fill=CLC)) + geom_sf(lwd=0, colour=NA) + theme_void() + theme(legend.pos="none") + scale_fill_manual(values=clc_codes$CLC_RGB)
+```
 
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.

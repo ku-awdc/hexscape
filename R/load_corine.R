@@ -46,7 +46,16 @@ cache_all_corine <- function(exclude = character(0), randomise=FALSE, verbose=1L
 
   ## Then run load_corine for everything:
   cat("Loading all corine data...\n")
-  load_corine(nuts1, union=TRUE, verbose=verbose)
+  nuts1 |>
+    as.list() |>
+    lapply(function(n1){
+      temp <- load_corine(n1, union=TRUE, use_cache=TRUE, verbose=verbose)
+      return(NULL)
+    })
+
+  ## Then cleanup:
+  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
+  unlink(list.files(clc_cache, full.names=TRUE), recursive=TRUE)
 
   invisible(NULL)
 }
