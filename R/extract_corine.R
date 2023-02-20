@@ -92,7 +92,13 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
     return(retfun(obj))
   }
 
-  if(verbose > 0L) cat("Extracting land use data and intersecting with map provided...\n", sep="")
+  if(verbose > 0L){
+    if(use_cache){
+      cat("Loading cached land use data and intersecting with map provided...\n", sep="")
+    }else{
+      cat("Extracting land use data and intersecting with map provided...\n", sep="")
+    }
+  }
 
   # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
   if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
@@ -247,7 +253,7 @@ validate_corine_cache <- function(){
   }else{
     info <- qread(file.path(clc_cache, "info.rqs"))
     if(length(attr(info, "version"))==1L && attr(info, "version") >= package_version("0.4.3")){
-      if(!all(str_c("CLC_", info, ".rqs") %in% list.files(clc_cache))){
+      if(!all(str_c("clc_", info, ".rqs") %in% list.files(clc_cache))){
         cache_ok <- FALSE
         attr(cache_ok, "reason") <- "incomplete cache"
       }else{
