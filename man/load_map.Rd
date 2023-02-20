@@ -4,7 +4,7 @@
 \alias{load_map}
 \title{Extract a map for given country or NUTS area code}
 \usage{
-load_map(nuts_code, nuts_label, verbose = 1L)
+load_map(nuts_code, verbose = 1L)
 }
 \arguments{
 \item{verbose}{}

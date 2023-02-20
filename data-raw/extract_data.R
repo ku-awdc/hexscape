@@ -1,7 +1,6 @@
 ## Extract all country / nuts codes / nuts names
 
-library("hexscape")
-library("pbapply")
+library("tidyverse")
 library("eurostat")
 library("readxl")
 
@@ -9,7 +8,8 @@ library("readxl")
 allcountries <- read_excel("data-raw/country_codes.xlsx") |> arrange(Code)
 stopifnot(all(table(allcountries[["Code"]])==1))
 
-nuts_codes <- get_eurostat_geospatial(year="2021") |>
+tt <- capture.output(map <- sf::st_read(file.path(Sys.getenv("HEXSCAPE_STORAGE"), "raw_data", "NUTS_RG_01M_2021_4326.shp")))
+map |>
   as_tibble() |>
   select(Code = CNTR_CODE, Level = LEVL_CODE, NUTS = NUTS_ID, Label=NUTS_NAME) |>
   arrange(Level, Code, NUTS) |>
@@ -17,13 +17,14 @@ nuts_codes <- get_eurostat_geospatial(year="2021") |>
     allcountries |> select(Code, Country=English),
     by="Code"
   ) |>
-  select(Code, Country, everything())
+  select(Code, Country, everything()) ->
+nuts_codes
 
 ## Note: there is no easy way to extract which countries are covered by corine directly from the database
 
 full_join(
   allcountries,
-  alleurostat |> distinct(Code, Eurostat=TRUE),
+  nuts_codes |> distinct(Code, Eurostat=TRUE),
   by="Code"
 ) |>
   replace_na(list(Eurostat = FALSE)) |>

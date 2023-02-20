@@ -8,9 +8,9 @@
 #' @importFrom purrr quietly
 #'
 #' @export
-load_map <- function(nuts_code, nuts_label, verbose=1L){
+load_map <- function(nuts_code, verbose=1L){
 
-  if(!missing(nuts_label)){
+  if(FALSE && !missing(nuts_label)){
     stop("nuts_label is not yet implemented")
     #str_detect()
   }
@@ -100,6 +100,7 @@ load_map <- function(nuts_code, nuts_label, verbose=1L){
     nuts_codes |>
       filter(Code==country_code) ->
     all_nuts
+
 
     stopifnot(all_nuts |> filter(Level==3) |> pull(NUTS) %in% map$NUTS_ID)
 
