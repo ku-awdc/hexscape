@@ -2,7 +2,6 @@
 % Please edit documentation in R/options.R
 \name{hexscape_options}
 \alias{hexscape_options}
-\alias{hexscape_options}
 \alias{hexscape_getOption}
 \title{Options for the hexscape package}
 \usage{
