@@ -1,8 +1,8 @@
 library('tidyverse')
-library('HexScape')
+library('hexscape')
 library("sf")
 
-set_storage_folder("~/Documents/Resources/Datasets/HexScape")
+set_storage_folder("~/Documents/Resources/Datasets/hexscape")
 
 ## Toy 1:  plain landscape
 

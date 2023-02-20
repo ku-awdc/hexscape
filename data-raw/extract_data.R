@@ -1,6 +1,6 @@
 ## Extract all country / nuts codes / nuts names
 
-library("HexScape")
+library("hexscape")
 library("pbapply")
 library("eurostat")
 library("readxl")
@@ -9,7 +9,7 @@ library("readxl")
 allcountries <- read_excel("data-raw/country_codes.xlsx") |> arrange(Code)
 stopifnot(all(table(allcountries[["Code"]])==1))
 
-nuts_codes <- get_eurostat_geospatial() |>
+nuts_codes <- get_eurostat_geospatial(year="2021") |>
   as_tibble() |>
   select(Code = CNTR_CODE, Level = LEVL_CODE, NUTS = NUTS_ID, Label=NUTS_NAME) |>
   arrange(Level, Code, NUTS) |>
@@ -33,6 +33,8 @@ full_join(
 read_csv("data-raw/clc_legend.csv", col_types=cols(.default="c")) |>
   select(CLC=CLC_CODE, CLC_Label1 = LABEL1, CLC_Label2 = LABEL2, CLC_Label3 = LABEL3, CLC_RGB=RGB) ->
   clc_codes
+
+names(clc_codes$CLC_RGB) = clc_codes$CLC
 
 usethis::use_data(clc_codes, nuts_codes, country_codes, overwrite = TRUE)
 

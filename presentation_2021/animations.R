@@ -1,6 +1,6 @@
 ## Code to make plots and animations for Mossa's presentation July 2021
 
-library("HexScape")
+library("hexscape")
 library("animation")
 library("ggthemes")
 library("pbapply")

@@ -1,6 +1,6 @@
 ### Investigate Merry Island data
 
-library("HexScape")
+library("hexscape")
 library("tidyverse")
 library("sf")
 
@@ -21,7 +21,7 @@ ggplot(island) + geom_sf()
 ###
 
 
-set_storage_folder("~/Documents/Resources/Datasets/HexScape")
+set_storage_folder("~/Documents/Resources/Datasets/hexscape")
 fr <- extract_map("FR")
 land_use <- extract_corine("FR", verbose=2L)
 

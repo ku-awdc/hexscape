@@ -1,4 +1,4 @@
-library("HexScape")
+library("hexscape")
 library("tidyverse")
 library("sf")
 

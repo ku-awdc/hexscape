@@ -1,8 +1,8 @@
 ---
-title: "HexScape"
+title: "hexscape"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{HexScape}
+  %\VignetteIndexEntry{hexscape}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(HexScape)
+library(hexscape)
 ```
 
 Set a storage folder for saving the results of raw data processing:

@@ -24,6 +24,7 @@ extract_corine(
 
 cache_all_corine(
   exclude = character(0),
+  randomise = FALSE,
   verbose = 1L,
   corine_path = file.path(hexscape_getOption("storage_folder"), "raw_data",
     "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")

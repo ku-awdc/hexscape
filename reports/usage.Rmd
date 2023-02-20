@@ -1,5 +1,5 @@
 ---
-title: "Basic Usage of HexScape"
+title: "Basic Usage of hexscape"
 author: "Matt Denwood"
 date: "2023-02-07"
 output: html_document
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-The HexScape package has a number of uses:
+The hexscape package has a number of uses:
 
 1. Facilitate use of vectorised spatial data for EU/EEA countries, and/or regions/areas (as defined by NUTS1/2/3) of these countries
 
@@ -42,7 +42,7 @@ remotes::install_github("ku-awdc/hexscape")
 Then you should be able to load the package:
 
 ```{r}
-library("HexScape")
+library("hexscape")
 ```
 
 Note that this also currently loads tidyverse, as that is what I used to develop the package, and I was too lazy to import everything properly. At some point, this will change, so it is probably best to explicitly load tidyverse as well:
@@ -56,7 +56,7 @@ library("tidyverse")
 
 ## Setup
 
-The HexScape package makes heavy use of local caching, as most of the spatial operations take quite a long time to process.  So, the first step is to create a folder somewhere on your hard drive (NOT a network storage drive) to/from which files can be saved/loaded. Then run the following code:
+The hexscape package makes heavy use of local caching, as most of the spatial operations take quite a long time to process.  So, the first step is to create a folder somewhere on your hard drive (NOT a network storage drive) to/from which files can be saved/loaded. Then run the following code:
 
 ```{r echo=FALSE}
 path_to_folder <- tempdir()
@@ -66,13 +66,13 @@ path_to_folder <- tempdir()
 set_storage_folder(path_to_folder)
 ```
 
-You should now see that HexScape has created some subfolders:
+You should now see that hexscape has created some subfolders:
 
 ```{r}
 list.files(path_to_folder)
 ```
 
-This storage folder needs to be set every time you load HexScape.  To avoid having to do this manually, you can put the following code in your .Rprofile:
+This storage folder needs to be set every time you load hexscape.  To avoid having to do this manually, you can put the following code in your .Rprofile:
 
 ```{r eval=FALSE}
 ## To open your .Rprofile try:
@@ -83,27 +83,87 @@ Sys.setenv("HEXSCAPE_STORAGE"="/path/to/folder")
 # [obviously replacing /path/to/folder with your path]
 ```
 
-That way, the storage folder will be set for you automatically when HexScape is loaded.
+That way, the storage folder will be set for you automatically when hexscape is loaded.
 
 ```{r echo=FALSE}
 set_storage_folder(Sys.getenv("HEXSCAPE_STORAGE"))
 unlink(path_to_folder, recursive=TRUE)
 ```
 
-## https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts#nuts16
+## NUTS
+
+The hexscape package makes heavy use of NUTS (Nomenclature of territorial units for statistics) to define spatial areas.  These are defined at levels 0 (national) to 3 (smallest scale), with the number of NUTS units depending on the country.  Some datasets are inbuilt to help with cross-referencing:
+
+```{r}
+nuts_codes
+nuts_codes |> filter(Code=="DK")
+```
+
+There is also a list of countries indicating whether or not that country has Eurostat spatial information available (and can therefore be used with the hexscape package):
+
+```{r}
+country_codes
+```
+
+
+## Eurostat data
+
+We use the spatial data provided by Eurostat to define the boundaries of NUTS areas. This can be downloaded from:  https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-units-statistical-units/nuts#nuts16
+
+You need to select the following options:
+
+- Year = NUTS 2016
+- File format = SHP
+- Geometry type = Polygons (RG)
+- Scale = 01M
+- CRS = EPSG: 4326
+
+[Note:  we are deliberately using 2016, and not 2021, as some of the NUTS codes have changed]
+
+Then hit the download button and extract the resulting ZIP file.  You should end up with a 28.8 MB folder called "NUTS_RG_01M_2016_4326.shp". Put this folder inside the "raw_data" folder of the hexscape storage folder you created above.
+
+You should then be able to load a map for any NUTS area at any level, for example:
+
+```{r}
+dk <- load_map("DK")
+dk
+ggplot(dk) + geom_sf() + theme_void()
+```
+```{r}
+sj <- load_map("DK032")
+ggplot(sj) + geom_sf() + theme_void()
+```
+
+The first time the maps for a specific country are fetched might take a couple of seconds to process from the raw data; subsequent loads will be from a country-specific cache.
 
 ## Corine data
 
-HexScape uses Corine Land Cover (CLC) data as the raw underlying data for land usage.  To use this, you need to download the SQLite Database from here:  https://land.copernicus.eu/pan-european/corine-land-cover/clc2018?tab=download
+hexscape uses Corine Land Cover (CLC) data as the raw underlying data for land usage.  To use this, you need to download the SQLite Database from here:  https://land.copernicus.eu/pan-european/corine-land-cover/clc2018?tab=download
 
 You will first need to register an account and log in, but it is free to do so.
 
-Once the file has downloaded (beware:  it is 3.5GB) you can un-zip it and hopefully end up with a folder named u2018_clc2018_v2020_20u1_geoPackage - move (or copy/symlink if you prefer) this folder inside the raw_data folder that you set up above.  Make sure to keep the name of the folder exactly as it is above.
+Once the file has downloaded (beware: it is 3.5GB) you can un-zip it and hopefully end up with a folder named u2018_clc2018_v2020_20u1_geoPackage - move (or copy/symlink if you prefer) this folder inside the raw_data folder that you set up above.  Make sure to keep the name of the folder exactly as it is above.
 
-## Basic maps
+The CLC data classifies land usage under a number of different categories, grouped at 3 different levels. To see what codes are defined use the following lookup table:
+
+```{r}
+clc_codes
+```
+
+The final column defines a suitable colour code suggested for plotting.
+
+## Processing Corine data
+
+The raw Corine data contains data on all polygons for all countries (i.e. it is vector rather than raster). In order to use it, we need to process the raw data to intersect with the specific NUTS1 area(s) we are interested in, and simplify the polygons slightly (for easier processing and plotting downstream). This is done automatically the first time you request a map for a specific NUTS1 area, then the data is cached and re-used for subsequent requests of the same area.  For example:
+
+```{r}
+dk_corine <- load_corine("DK0")
+ggplot(dk_corine, aes(fill=CLC)) + geom_sf(lwd=0, colour=NA) + theme_void() + theme(legend.pos="none") + scale_fill_manual(values=clc_codes$CLC_RGB)
+```
 
 
 
+Processing takes between 5-15 mins per NUTS1 area on my arm64 laptop (and at least double that on my trusty old Xeon desktop)...
 
 
 

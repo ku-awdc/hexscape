@@ -8,7 +8,7 @@
 # Animals don't stop if breeding capacity = 0
 # Less likely to stop if there is insufficient breeding space
 
-library("HexScape")
+library("hexscape")
 library("sf")
 
 # Did you know about this?

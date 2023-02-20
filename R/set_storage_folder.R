@@ -1,4 +1,4 @@
-#' Set storage folder for HexScape package
+#' Set storage folder for hexscape package
 #'
 #' @param folder
 #'
@@ -10,6 +10,7 @@ set_storage_folder <- function(folder){
 
   if(!dir.exists(file.path(folder, "raw_data"))) dir.create(file.path(folder, "raw_data"))
   if(!dir.exists(file.path(folder, "processed_data"))) dir.create(file.path(folder, "processed_data"))
+  if(!dir.exists(file.path(folder, "processed_data", "clc_by_code"))) dir.create(file.path(folder, "processed_data", "clc_by_code"))
   if(!dir.exists(file.path(folder, "landscapes"))) dir.create(file.path(folder, "landscapes"))
 
   ## TODO: look for the necessary files and print a message saying where to download stuff from

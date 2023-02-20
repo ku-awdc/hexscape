@@ -48,11 +48,11 @@ load_map <- function(nuts_code, nuts_label, verbose=1L){
   if(!refresh && file.exists(savename)){
     if(verbose > 1L) cat("Returning cached sf data for ", country_code, "...\n", sep="")
     map <- qread(savename)
-    if(length(attr(map, "version"))==1L && attr(map, "version") >= package_version("0.4.2")){
+    if(length(attr(map, "version"))==1L && attr(map, "version") >= package_version("0.4.3")){
       cache_ok <- TRUE
     }else{
       cache_ok <- FALSE
-      if(verbose > 0L) cat("Re-extracting sf data for ", country_code, " (required for new HexScape version)...\n", sep="")
+      if(verbose > 0L) cat("Re-extracting sf data for ", country_code, " (required for new hexscape version)...\n", sep="")
     }
   }else{
     if(verbose > 0L) cat("Extracting sf data for ", country_code, "...\n", sep="")
@@ -61,14 +61,13 @@ load_map <- function(nuts_code, nuts_label, verbose=1L){
 
   if(!cache_ok){
 
-    ## For consistency with Corine period:
-    nuts_year <- 2016
-
     ## Note: anything other than nuts_level==3 produces lower res maps
     if(is.null(hexscape_env$eurostat_map)){
 
       ## Old eurostat code - not using as resolution is not always as advertised
       if(FALSE){
+        ## Note: changed this as well
+        nuts_year <- 2016
         if(verbose > 0L) cat("Extracting eurostat geospatial data...\n", sep="")
         qf <- quietly(get_eurostat_geospatial)
         qf(output_class = "sf", resolution = "01", nuts_level = "3",
@@ -80,17 +79,19 @@ load_map <- function(nuts_code, nuts_label, verbose=1L){
       }
 
       ## New code reading from file:
-      mapfile <- file.path(storage_folder, "raw_data", "NUTS_RG_01M_2016_4326.shp")
+      mapfile <- file.path(storage_folder, "raw_data", "NUTS_RG_01M_2021_4326.shp")
       if(!dir.exists(mapfile)){
-        stop("The eurostat map file directory (NUTS_RG_01M_2016_4326.shp) was not found - see the help file for instructions")
+        stop("The eurostat map file directory (NUTS_RG_01M_2021_4326.shp) was not found - see the help file for instructions")
       }
-      map <- st_read(mapfile)
+      tt <- capture.output(map <- st_read(mapfile))
 
+      attr(map, "eurostat_path") <- mapfile
       hexscape_env$eurostat_map <- map
     }else{
       map <- hexscape_env$eurostat_map
     }
 
+    eurostat_path <- attr(map, "eurostat_path")
     map <- map |>
       filter(CNTR_CODE %in% country_code) |>
       select(CNTR_CODE, NUTS_ID, NUTS_NAME, geometry)
@@ -189,8 +190,8 @@ load_map <- function(nuts_code, nuts_label, verbose=1L){
       nuts3
     )
 
-    attr(map, "nuts_year") <- nuts_year
     attr(map, "version") <- hexscape_version()
+    attr(map, "eurostat_path") <- eurostat_path
 
     # ggplot(map) + geom_sf() + geom_sf_text(aes(geometry=centroid, label=NUTS))
     qsave(map, savename)

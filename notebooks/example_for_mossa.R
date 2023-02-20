@@ -2,7 +2,7 @@
 
 library("tidyverse")
 library("sf")
-library("HexScape")
+library("hexscape")
 
 
 # A somewhat complex landscape:

@@ -7,12 +7,12 @@ set.seed(2022-09-22)
 
 ## Extract land usage and fake farm data:
 
-# Use HexScape for land usage data:
+# Use hexscape for land usage data:
 if(file.exists("hexscape_extract.rda")){
   (load("hexscape_extract.rda"))
 }else{
-  library("HexScape")
-  set_storage_folder("~/Documents/Resources/Datasets/HexScape")
+  library("hexscape")
+  set_storage_folder("~/Documents/Resources/Datasets/hexscape")
   map_dk <- extract_map("DK")
   extract_corine("DK", verbose=2L) |>
     filter(CLC_LABEL1 == "Agricultural areas") |>

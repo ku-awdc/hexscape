@@ -13,6 +13,7 @@
 #' @importFrom rmapshaper ms_simplify
 #' @importFrom units set_units
 #' @importFrom qs qsave qread
+#' @importFrom rlang set_names
 #' @importFrom runjags new_unique
 #'
 
@@ -62,8 +63,11 @@ load_corine <- function(nuts_code, union=FALSE, verbose=1L, corine_path=file.pat
     stop("The following NUTS codes supplied are invalid: ", str_c(nuts_code[invalid], collapse=", "))
   }
 
-  nuts_codes |>
-    filter(NUTS %in% nuts_code) ->
+  tibble(NUTS = nuts_code) |>
+    left_join(
+      nuts_codes |> filter(NUTS %in% nuts_code),
+      by="NUTS"
+    ) ->
     nuts_using
 
   ## Work out which nuts1 this refers to:
@@ -95,8 +99,7 @@ load_corine <- function(nuts_code, union=FALSE, verbose=1L, corine_path=file.pat
     # mutate(Row = as.numeric(factor(if_else(!Exists, cur_group_id(), NA_integer_)))) |>
     ungroup() |>
     mutate(Row = as.numeric(factor(Row)), NRow = if(all(is.na(Row))) 0L else max(Row, na.rm=TRUE)) |>
-    group_by(NUTS1) |>
-    group_split() |>
+    group_split(.order=factor(NUTS1, levels=NUTS1)) |>
     lapply(function(cc){
 
       nuts_code <- cc[["NUTS1"]] |> unique()
@@ -106,12 +109,12 @@ load_corine <- function(nuts_code, union=FALSE, verbose=1L, corine_path=file.pat
       savename <- cc[["Savename"]]
       if(file.exists(savename)){
         nc <- qread(savename)
-        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.2")){
+        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.3")){
           if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, "\n", sep="")
           cache_ok <- TRUE
         }else{
           cache_ok <- FALSE
-          if(verbose > 0L) cat("Re-processing corine data for ", nuts_code, " (required for new HexScape version)...\n", sep="")
+          if(verbose > 0L) cat("Re-processing corine data for ", nuts_code, " (required for new hexscape version)...\n", sep="")
         }
       }else{
         cache_ok <- FALSE
@@ -234,17 +237,89 @@ extract_corine <- function(map, simplify_keep=0.25, corine_path=file.path(hexsca
   # ggplot(mapsf) + geom_sf()
   if(length(mapsf)!=1L || !st_is_valid(mapsf) || any(!st_is_valid(map))) stop("Invalid map supplied")
 
-  if(verbose > 1L) cat("Extracting information on layers and codes...\n", sep="")
-  layers <- st_layers(corine_path)
-  codes <- as.list(layers$name) %>%
-    `names<-`(.,.) %>%
-    map_df( ~
-              suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
-              `colnames<-`(., toupper(colnames(.)))
-            , .id="Layer") %>%
-    distinct(CODE_18) |>
-    arrange(CODE_18) |>
-    pull(CODE_18)
+  ## See if we need to re-load the local cache of qs files by CLC:
+  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
+  if(!dir.exists(clc_cache)){
+    stop("CLC cache folder (", clc_cache, ") does not exist")
+  }
+  if(!file.exists(file.path(clc_cache, "info.rqs"))){
+    if(verbose > 0L) cat("Extracting raw CLC code information...\n", sep="")
+    cache_ok <- FALSE
+  }else{
+    info <- qread(file.path(clc_cache, "info.rqs"))
+    if(length(attr(info, "version"))==1L && attr(info, "version") >= package_version("0.4.3")){
+      cache_ok <- TRUE
+    }else{
+      cache_ok <- FALSE
+      if(verbose > 0L) cat("Re-extracting raw CLC code information (required for new hexscape version)...\n", sep="")
+    }
+  }
+
+  if(!cache_ok){
+
+    if(verbose > 1L) cat("Extracting information on layers and codes...\n", sep="")
+    layers <- st_layers(corine_path)
+    codes <- as.list(layers$name) %>%
+      set_names() %>%
+      map_df( ~
+                suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
+                `colnames<-`(., toupper(colnames(.)))
+              , .id="Layer") %>%
+      distinct(CODE_18) |>
+      arrange(CODE_18) |>
+      pull(CODE_18)
+
+    st <- Sys.time()
+    get_clc <- function(cc){
+
+      code <- codes[cc]
+      if(verbose > 2L){
+        cat("Extracting code ", code, " ... ", sep="")
+
+        ## hack:
+        retfun <- function(rv){
+          cat(round(cc/length(codes)*100), "% complete after ", round(as.numeric(Sys.time()-st, units="mins")), " minutes\n", sep="")
+          return(rv)
+        }
+      }else{
+        retfun <- function(rv) rv
+      }
+
+      ## Extract the code and cache:
+      obj <- layers$name %>%
+        `names<-`(.,.) %>%
+        set_names() %>%
+        lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
+        `[`(sapply(.,nrow)>0) %>%
+        lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
+        bind_rows()
+
+      ## Then save:
+      qsave(obj, file=file.path(clc_cache, str_c("clc_", code, ".rqs")))
+
+      return(code)
+    }
+
+    if(verbose > 1L) cat("Extracting raw land use data relating to ", length(codes), " CLC codes...\n", sep="")
+
+    # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
+    if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
+    length(codes) |>
+      # sample.int to randomise ordering (more realistic time to completion)
+      sample.int() |>
+      afun(get_clc) |>
+      simplify2array() ->
+      info
+
+    ## Then save the codes and file:
+    attr(info, "version") <- hexscape_version()
+    attr(info, "corine_path") <- corine_path
+
+    qsave(info, file=file.path(clc_cache, "info.rqs"))
+  }
+
+  ## Then do the extraction per NUTS3 area:
+  codes <- info
 
   ## Then do the extraction:
   st <- Sys.time()
@@ -263,28 +338,19 @@ extract_corine <- function(map, simplify_keep=0.25, corine_path=file.path(hexsca
       retfun <- function(rv) rv
     }
 
-    ## First extract the code and filter to only those that intersect anything we are interested in:
-    obj <- layers$name %>%
-      `names<-`(.,.) %>%
-      as.list() %>%
-      lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
-      `[`(sapply(.,nrow)>0) %>%
-      lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
-      bind_rows()
-
-    if(nrow(obj)==0) return(retfun(NULL))
-
-    obj <- obj %>%
-      st_transform(st_crs(map)) %>%
-      mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) %>%
-      filter(use) %>%
-      select(-use)
+    ## Re-load the code and filter to only those that intersect anything we are interested in:
+    qread(file.path(clc_cache, str_c("clc_", code, ".rqs"))) |>
+      st_transform(st_crs(map)) |>
+      mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) |>
+      filter(use) |>
+      select(-use) ->
+      obj
 
     if(nrow(obj)==0) return(retfun(NULL))
     return(retfun(obj))
   }
 
-  if(verbose > 0L) cat("Extracting land use data relating to ", length(codes), " CLC codes...\n", sep="")
+  if(verbose > 0L) cat("Extracting land use data and intersecting with map provided...\n", sep="")
 
   # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
   if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply

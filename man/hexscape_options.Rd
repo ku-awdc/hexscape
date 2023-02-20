@@ -2,9 +2,9 @@
 % Please edit documentation in R/options.R
 \name{hexscape_options}
 \alias{hexscape_options}
-\alias{HexScape_options}
+\alias{hexscape_options}
 \alias{hexscape_getOption}
-\title{Options for the HexScape package}
+\title{Options for the hexscape package}
 \usage{
 hexscape_options(...)
 
@@ -19,16 +19,16 @@ hexscape_getOption(name)
 The current value of all available HexScaoe options (after applying any changes specified) is returned invisibly as a named list.
 }
 \description{
-Utility function to set/get options for the HexScape package, most notably the local folder used to store intermediate objects.
+Utility function to set/get options for the hexscape package, most notably the local folder used to store intermediate objects.
 }
 \details{
 The following options can be specified:
 
 \itemize{
-\item \bold{storage_folder} - the path to a folder to store intermediate objects created by HexScape.
+\item \bold{storage_folder} - the path to a folder to store intermediate objects created by hexscape.
 }
 }
 \seealso{
-\code{\link{HexScape}}
+\code{\link{hexscape}}
 }
 \keyword{methods}

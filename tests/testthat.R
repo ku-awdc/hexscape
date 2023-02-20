@@ -1,4 +1,4 @@
 library(testthat)
-library(HexScape)
+library(hexscape)
 
-test_check("HexScape")
+test_check("hexscape")
