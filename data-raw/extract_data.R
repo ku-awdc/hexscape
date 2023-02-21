@@ -8,7 +8,7 @@ library("readxl")
 allcountries <- read_excel("data-raw/country_codes.xlsx") |> arrange(Code)
 stopifnot(all(table(allcountries[["Code"]])==1))
 
-tt <- capture.output(map <- sf::st_read(file.path(Sys.getenv("HEXSCAPE_STORAGE"), "raw_data", "NUTS_RG_01M_2021_4326.shp")))
+tt <- capture.output(map <- sf::st_read(file.path(Sys.getenv("HEXSCAPE_STORAGE"), "raw_data", "NUTS_RG_01M_2021_3035.shp")))
 map |>
   as_tibble() |>
   select(Code = CNTR_CODE, Level = LEVL_CODE, NUTS = NUTS_ID, Label=NUTS_NAME) |>

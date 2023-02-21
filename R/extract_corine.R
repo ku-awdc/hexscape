@@ -252,7 +252,7 @@ validate_corine_cache <- function(){
     attr(cache_ok, "reason") <- "no cache"
   }else{
     info <- qread(file.path(clc_cache, "info.rqs"))
-    if(length(attr(info, "version"))==1L && attr(info, "version") >= package_version("0.4.3")){
+    if(length(attr(info, "version"))==1L && attr(info, "version") >= package_version("0.4.5")){
       if(!all(str_c("clc_", info, ".rqs") %in% list.files(clc_cache))){
         cache_ok <- FALSE
         attr(cache_ok, "reason") <- "incomplete cache"

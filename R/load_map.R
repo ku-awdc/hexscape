@@ -48,7 +48,7 @@ load_map <- function(nuts_code, verbose=1L){
   if(!refresh && file.exists(savename)){
     if(verbose > 1L) cat("Returning cached sf data for ", country_code, "...\n", sep="")
     map <- qread(savename)
-    if(length(attr(map, "version"))==1L && attr(map, "version") >= package_version("0.4.3")){
+    if(length(attr(map, "version"))==1L && attr(map, "version") >= package_version("0.4.5")){
       cache_ok <- TRUE
     }else{
       cache_ok <- FALSE
@@ -64,7 +64,7 @@ load_map <- function(nuts_code, verbose=1L){
     ## Note: anything other than nuts_level==3 produces lower res maps
     if(is.null(hexscape_env$eurostat_map)){
 
-      ## Old eurostat code - not using as resolution is not always as advertised
+      ## Old eurostat code - not using as resolution is not always as advertised - and 4326 should be 3035 as well
       if(FALSE){
         ## Note: changed this as well
         nuts_year <- 2016
@@ -79,9 +79,9 @@ load_map <- function(nuts_code, verbose=1L){
       }
 
       ## New code reading from file:
-      mapfile <- file.path(storage_folder, "raw_data", "NUTS_RG_01M_2021_4326.shp")
+      mapfile <- file.path(storage_folder, "raw_data", "NUTS_RG_01M_2021_3035.shp")
       if(!dir.exists(mapfile)){
-        stop("The eurostat map file directory (NUTS_RG_01M_2021_4326.shp) was not found - see the help file for instructions")
+        stop("The eurostat map file directory (NUTS_RG_01M_2021_3035.shp) was not found - see the help file for instructions")
       }
       tt <- capture.output(map <- st_read(mapfile))
 

@@ -116,7 +116,7 @@ load_corine <- function(nuts_code, union=FALSE, use_cache=validate_corine_cache(
       savename <- cc[["Savename"]]
       if(file.exists(savename)){
         nc <- qread(savename)
-        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.3")){
+        if(length(attr(nc, "version"))==1L && attr(nc, "version") >= package_version("0.4.5")){
           if(verbose > 1L) cat("Returning cached corine data for ", nuts_code, "\n", sep="")
           cache_ok <- TRUE
         }else{
