@@ -1,7 +1,7 @@
 ---
 title: "Basic Usage of hexscape"
 author: "Matt Denwood"
-date: "2023-02-07"
+date: "2023-02-22"
 output:
   html_document: default
   pdf_document: default
@@ -9,6 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library("pbapply")
+pboptions(type="txt")
 ```
 
 ## Introduction
@@ -40,7 +42,7 @@ install.packages("hexscape", repos=c(CRAN = "https://cran.rstudio.com/",
 Or, for the most recent (but even less stable) version you can install from GitHub:
 
 ```{r eval=FALSE}
-remotes::install_github("ku-awdc/hexscape")
+# remotes::install_github("ku-awdc/hexscape")
 ```
 
 Then you should be able to load the package:
@@ -61,11 +63,18 @@ library("sf")
 
 ### Setup
 
-The hexscape package uses local caching of intermediate data files, as most of the spatial operations take quite a long time to process from the raw data.  So, the first step is to create a folder somewhere on your hard drive (NOT a network storage drive) to/from which files can be saved/loaded. Then run the following code:
+The hexscape package uses local caching of intermediate data files, as most of the spatial operations take quite a long time to process from the raw data.  So, the first step is to create a folder somewhere on your hard drive (NOT a network storage drive) to/from which files can be saved/loaded:
 
 ```{r echo=FALSE}
-path_to_folder <- tempdir()
+path_to_folder <- file.path(tempdir(check=TRUE), "hexscape_usage")
+dir.create(path_to_folder)
 ```
+
+```{r eval=FALSE}
+path_to_folder <- "/some/path/to/a/folder"
+```
+
+Then run the following code:
 
 ```{r}
 set_storage_folder(path_to_folder)
@@ -84,8 +93,8 @@ This storage folder needs to be set every time you load hexscape.  To avoid havi
 usethis::edit_r_profile()
 
 ## Then add the following to the bottom of that file:
-Sys.setenv("HEXSCAPE_STORAGE"="/path/to/folder")
-# [obviously replacing /path/to/folder with your path]
+Sys.setenv("HEXSCAPE_STORAGE"="/some/path/to/a/folder")
+# [obviously replacing /some/path/to/a/folder with your path]
 ```
 
 That way, the storage folder will be set for you automatically when hexscape is loaded.
@@ -94,6 +103,7 @@ That way, the storage folder will be set for you automatically when hexscape is 
 set_storage_folder(Sys.getenv("HEXSCAPE_STORAGE"))
 unlink(path_to_folder, recursive=TRUE)
 ```
+
 
 ### NUTS
 
@@ -139,7 +149,7 @@ Or for a sub-region of a country:
 
 ```{r}
 sj <- load_map("DK032")
-#ggplot(sj) + geom_sf() + theme_void()
+ggplot(sj) + geom_sf() + theme_void()
 ```
 
 The first time the maps for a specific country are fetched might take a couple of seconds to process from the raw data; subsequent loads will be from a country-specific cache (almost instantaneously).
@@ -180,7 +190,7 @@ The default return value is a modified sf data frame, with 1 row per combination
 
 The number of NUTS1 codes per country varies from 1 (around half of the countries) up to 16 (Germany), and each NUTS1 area is cached separately. If you request data for a whole country, this might mean it takes a long time to process all of the relevant NUTS1 areas.
 
-If you know that you need to process a lot of different NUTS1 areas then you can set use_cache=TRUE for load_corine(); this does some pre-processing of the entire raw Corine database which takes around 5 minutes the first time, but speeds up subsequent calls to load_corine (for any NUTS1 area). The downside is that this uses around 5GB of extra hard drive space to store the cached intermediate files. Or you can ask me nicely for a specific set NUTS1 areas and I might send them to you ... but please do register and download the Corine database yourself so that I am not violating their usage policies.
+If you know that you need to process a lot of different NUTS1 areas then you can set use_cache=TRUE for load_corine(); this does some pre-processing of the entire raw Corine database which takes around 5 minutes the first time, but speeds up subsequent calls to load_corine (for any NUTS1 area). The downside is that this uses around 5GB of extra hard drive space to store the cached intermediate files. Or you can ask me nicely for a specific set NUTS1 areas and I will send the pre-processed cache files to you ... but please do register and download the Corine database yourself so that I am not violating their usage policies.
 
 
 ### Summarising processed corine data
@@ -203,7 +213,9 @@ TODO:  At some point I will probably write a helper function e.g. aggregate_cori
 
 ### Danish-specific data
 
-TODO: kommune, sogne, and postcode shape files (and population densities from Danmark's Statistic via https://github.com/rOpenGov/dkstat or direct via the API ??)
+TODO: incorporate code for kommune, sogne, and postcode shape files from Covid19tools package
+
+Future TODO: maybe include other info (e.g. population densities) from Danmark's Statistic via their API (or using https://github.com/rOpenGov/dkstat ??)
 
 
 ## Discretising the spatial data
@@ -229,10 +241,15 @@ Then we can produce Voronoi tesselated polygons within this farmland as follows 
 
 ```{r}
 dk032_voronoi <- discretise_voronoi(dk032_farmland, fake_farms)
+```
+
+This returns the original data frame, plus new columns for Area, centroid (of the Voronoi tesselated area after intersecting with the map), and geometry.
+
+```{r}
 dk032_voronoi
 ```
 
-This returns the original data frame, plus new columns for Area, centroid (of the Voronoi tesselated area after intersecting with the map), and geometry.  These can be plotted to show the expected discrepancy between original farm location and centroid e.g.:
+These can be plotted to show the expected discrepancy between original farm location and centroid e.g.:
 
 ```{r}
 ggplot() +
@@ -271,11 +288,11 @@ A number of helper/utility functions are provided (mostly wrapping functionality
 To easily sample random points within a data frame containing polygons (either Voronoi tesselations or hexagons or anything else), you can use the sample_points function.  This takes 2 arguments:  the first is an sf data frame with 1 or more rows and a column giving the Index, and the second is the number of points to sample within each row.
 
 ```{r}
-random_points <- sample_points(dk032_voronoi, size=5L)
+random_points <- sample_points(dk032_voronoi, size=5L, verbose=0L)
 random_points
 ```
 
-The points are generated by rejection sampling over a bounding box of iteratively decreasing size. To plot the points:
+The points are generated by rejection sampling over a bounding box that iteratively decreases in size once enough points have been found for each individual polygon. To plot the points:
 
 ```{r}
 ggplot() +
@@ -290,9 +307,9 @@ In this case, each farmland polygon should contain exactly 5 random points.
 
 ## Footnotes
 
-The package is still under active development and is subject to some change, however we will try to keep the interfaces discussed above consistent. In particular, we acknowledge that the help files are fairly non-existent at the moment - these will be updated ASAP. When new release versions are uploaded to drat, this guide will be updated with the new features.
+The package is still under active development and is subject to some change, however we will try to keep the interfaces discussed above consistent. In particular, we acknowledge that the help files are fairly non-existent at the moment - sorry - but these will be updated ASAP. When new release versions are uploaded to drat, this guide will be updated with the new features.
 
-Comments and suggestions are very welcome!
+At some point soon ish we will be summarising the main features of this package as part of a paper (linked to both Mossa's PhD and DigiVet). In the meantime, comments and suggestions are very welcome!
 
 ```{r}
 sessionInfo()
