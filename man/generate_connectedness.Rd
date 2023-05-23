@@ -10,7 +10,7 @@ generate_connectedness(
   max_distance = NULL,
   grid_resolution = 1000,
   sparse = TRUE,
-  extra_info = TRUE,
+  centroid_distance = TRUE,
   verbose = 2L
 )
 }
@@ -25,7 +25,7 @@ generate_connectedness(
 
 \item{sparse}{should a sparse data frame be returned, or a dense matrix?}
 
-\item{extra_info}{should additional information of connectedness based on centroids be returned (ignored if !isTRUE(sparse))}
+\item{centroid_distance}{should additional information of connectedness based on centroids be returned (ignored if !isTRUE(sparse))}
 
 \item{verbose}{verbosity level (0 is silent, 2 is noisy)}
 }

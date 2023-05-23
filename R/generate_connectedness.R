@@ -5,11 +5,11 @@
 #' @param max_distance the maximum distance beyond which connectedness is assumed to be negligable - default is to determine this automatically
 #' @param grid_resolution the resolution of the numerical approximation, in terms of the number of points to evaluate betweeen zero distance and max_distance
 #' @param sparse should a sparse data frame be returned, or a dense matrix?
-#' @param extra_info should additional information of connectedness based on centroids be returned (ignored if !isTRUE(sparse))
+#' @param centroid_distance should additional information of connectedness based on centroids be returned (ignored if !isTRUE(sparse))
 #' @param verbose verbosity level (0 is silent, 2 is noisy)
 #'
 #' @export
-generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL, grid_resolution=1e3, sparse=TRUE, extra_info=TRUE, verbose=2L){
+generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL, grid_resolution=1e3, sparse=TRUE, centroid_distance=TRUE, verbose=2L){
 
   if(FALSE){
     library("sf")
@@ -23,7 +23,7 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
                        xrange[1], yrange[1]
     )
     landscape <- st_multipolygon(list(list(as.matrix(corners)))) |> st_sfc() |> st_as_sf()
-    farms <- tibble(Index = st_sample(landscape, 100L) |> st_sfc()) |> st_as_sf()
+    farms <- tibble(Index = 1:100L) |> mutate(geometry = st_sample(landscape, n()) |> st_sfc()) |> st_as_sf()
     patches <- discretise_voronoi(landscape, farms)
 
     connectedness_fun <- function(x) 0.1 * 1/x
@@ -41,10 +41,10 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
   if(verbose > 1L) cat("Calculating pairwise distances between patches...\n")
 
   ## Get pairwise distances between patches (based on closest parts of each polygon, i.e. NOT centroid-centroid distances):
-  distances <- st_distance(patches$geometry)
+  distances <- st_distance(patches)
 
   ## Get the maximum distance for this landscape:
-  bbox <- st_bbox(st_union(patches$geometry))
+  bbox <- st_bbox(st_union(patches))
   max_dist_landscape <- st_distance(st_point(bbox[c("xmin","ymin")]), st_point(bbox[c("xmax","ymax")])) |> as.numeric()
 
   ## If max_distance is not specified, attempt to guess at a reasonable number...
@@ -68,10 +68,10 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
   ## Now we can do the numerical approximation:
 
   # Helper function - EXTREMELY inefficient - TODO: C++ code
-  addindex <- function(x){
+  addindex <- function(x, candidates){
     st_contains_properly(patches |> slice(candidates), x, sparse=FALSE) |>
       apply(2L, function(y){
-        y <- which(y)
+        y <- candidates[which(y)]
         if(length(y)==0L) return(NA_integer_)
         stopifnot(length(y)==1L)
         y
@@ -94,11 +94,12 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
     ## Distribute points over this area and add the corresponding Index:
     expand_grid(x = seq(bbox[["xmin"]], bbox[["xmax"]], by=grid_by), y = seq(bbox[["ymin"]], bbox[["ymax"]], by=grid_by)) |>
       st_as_sf(coords = c("x","y")) |>
-      addindex() ->
+      addindex(candidates) ->
       points
 
     ## Separate into the target and source points:
     target <- points |> filter(Index == i)
+    stopifnot(nrow(target)>0L)
     source <- points |> filter(Index != i)
 
     ## Get distances between every target and source point:
@@ -136,10 +137,13 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
 
   system.time(output <- approxfun(1))
 
-  ## Note: this is currently WAAAAY to slow to be useful for reasonable grid_resolution, but there are some inefficiencies we can address:
+  ## Note:  this is currently WAAAAY to slow to be useful for reasonable grid_resolution, but there are some inefficiencies we can address:
   # MAJOR:  st_distance is not the fastest way to calculate distance as the points are regular
   #         we can instead frame the target point as 0,0 and use pre-calculated connectedness in a matrix around that
   # MAJOR:  loops are inevitable -> use Rcpp (generating points and overlapping Index is not the bottleneck)
   # MINOR:  Distances between patches are symmetric, so here are calculated twice needlessly
+
+  ## TODO:  also return connectedness within a patch, as we will need to control for this with infection models for full equivalence??
+  ## TODO:  implement sparse and centroid_distance arguments
 
 }
