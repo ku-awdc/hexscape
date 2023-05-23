@@ -221,7 +221,7 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
 
   if(inherits(ss, "try-error")){
     if(verbose > 0L) cat("ERROR:", as.character(ss), "\n")
-    fn <- file.path(getwd(), runjags::new_unique("corine_failed", "rda"))
+    fn <- file.path(getwd(), paste0("corine_failed_", strftime(Sys.time(), format="%Y%m%d%H%M%S"), ".rda"))
     save(mapsf, cr, simplify_keep, file=fn)
     stop(str_c("There was an unexpected problem processing corine data - intermediate output has been saved to ", fn))
   }

@@ -31,8 +31,7 @@ Imports:
     pbapply,
     eurostat,
     units,
-    qs (>= 0.25),
-    runjags
+    qs (>= 0.25)
 Suggests: 
     testthat (>= 3.0.0),
     knitr,

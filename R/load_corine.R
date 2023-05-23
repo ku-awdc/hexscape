@@ -12,7 +12,6 @@
 #' @importFrom units set_units
 #' @importFrom qs qsave qread
 #' @importFrom rlang set_names
-#' @importFrom runjags new_unique
 #'
 
 #' @rdname load_corine
