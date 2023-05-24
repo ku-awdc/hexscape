@@ -4,3 +4,5 @@ inst/doc
 .Rhistory
 south_jutland_patches.rda
 *.jpg
+*.o
+*.so
