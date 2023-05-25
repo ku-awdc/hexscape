@@ -72,6 +72,9 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
   ## Approximation function in R/C++:
   approxfun <- function(i){
 
+    ## Pre-calculate connectedness for a regular grid with height/width = 2*max_distance:
+    # grid
+
     ## Helper function - TODO: C++ code
     addindex <- function(x, candidates){
       st_contains_properly(patches, x, sparse=FALSE) |>
@@ -156,6 +159,7 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
       select(Source, Destination, Connectedness)
   }
 
+  ####################
   ## Approximation function in R (slow):
   approxfun_R <- function(i){
 
@@ -213,15 +217,18 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
       mutate(Destination = all_indexes[i], Source = all_indexes[Index]) |>
       select(Source, Destination, Connectedness)
   }
+  ####################
+
 
   ## Get output:
   seq_len(nrow(patches)) |>
-    pblapply(approxfun) |>
+    pblapply(approxfun_R) |>
     bind_rows() ->
     rv
 
   return(rv)
 
+  system.time(output <- approxfun_R(1))
   system.time(output <- approxfun(1))
 
   ## Note:  this is currently WAAAAY to slow to be useful for reasonable grid_resolution, but there are some inefficiencies we can address:
