@@ -1,6 +1,6 @@
 #' @importFrom Rcpp loadModule
 #' @useDynLib hexscape, .registration = TRUE
-loadModule("example_module", TRUE)
+loadModule("hexscape_module", TRUE)
 
 .onLoad <- function(lib, pkg)
 {

@@ -1,7 +1,7 @@
 #' Generate pairwise connectedness between patches using a numerical approximation to integrating over distances between areas within two patches
 #'
 #' @param patches a data frame containing polygons and indexes, such as that created by \code{\link{generate_patches}}
-#' @param connectedness_fun a vectorised function mapping distances to connectedness i.e. a spatial kernal
+#' @param connectedness_fun a vectorised function mapping distances to connectedness i.e. a spatial kernal (TODO: may also take a second argument giving the bearing)
 #' @param max_distance the maximum distance beyond which connectedness is assumed to be negligable - default is to determine this automatically
 #' @param grid_resolution the resolution of the numerical approximation, in terms of the number of points to evaluate betweeen zero distance and max_distance
 #' @param sparse should a sparse data frame be returned, or a dense matrix?
@@ -27,7 +27,7 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
     patches <- discretise_voronoi(landscape, farms)
 
     connectedness_fun <- function(x) 0.1 * 1/x
-    max_distance=5; grid_resolution=20; verbose=2L
+    max_distance=5; grid_resolution=100; verbose=2L
   }
 
 
@@ -67,23 +67,52 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
 
   ## Now we can do the numerical approximation:
 
-  # Helper function - EXTREMELY inefficient - TODO: C++ code
-  addindex <- function(x, candidates){
-    st_contains_properly(patches |> slice(candidates), x, sparse=FALSE) |>
-      apply(2L, function(y){
-        y <- candidates[which(y)]
-        if(length(y)==0L) return(NA_integer_)
-        stopifnot(length(y)==1L)
-        y
-      }) ->
-      ii
-    x |> mutate(Index = ii) |> filter(!is.na(Index))
-  }
-
   grid_by <- max_distance / grid_resolution
 
-  ## Approximation function:
+  ## Approximation function in R/C++:
   approxfun <- function(i){
+
+    ## Helper function - TODO: C++ code
+    addindex <- function(x, candidates){
+      st_contains_properly(patches, x, sparse=FALSE) |>
+        apply(2L, function(y){
+          y <- candidates[which(y)]
+          if(length(y)==0L) return(NA_integer_)
+          stopifnot(length(y)==1L)
+          y
+        }) ->
+        ii
+      x |> mutate(Index = ii) |> filter(!is.na(Index))
+    }
+
+    ## Find the patches within max_distance:
+    candidates <- patches |> slice(which(distances[i,] <= max_distance))
+
+    ## Define a bbox around the target patch and calculate central x and y points:
+    bbox <- candidates |> filter(Index==i) |> st_bbox()
+    stopifnot(!is.na(bbox))
+    xpoints_central <- seq(bbox[["xmin"]]+grid_by/2, bbox[["xmax"]], by=grid_by)
+    ypoints_central <- seq(bbox[["ymin"]]+grid_by/2, bbox[["ymax"]], by=grid_by)
+
+    ## Calculate all x and y points using a buffer around the central points:
+    xpoints <- c(
+      xpoints_central[1L] - seq(grid_resolution, 1, by=-1)*grid_by,
+      xpoints_central,
+      xpoints_central[length(xpoints_central)] + seq(1, grid_resolution, by=1)*grid_by
+    )
+    stopifnot(abs((xpoints-lag(xpoints))[-1L] - grid_by) < sqrt(.Machine$double.eps))
+    ypoints <- c(
+      ypoints_central[1L] - seq(grid_resolution, 1, by=-1)*grid_by,
+      ypoints_central,
+      ypoints_central[length(ypoints_central)] + seq(1, grid_resolution, by=1)*grid_by
+    )
+    stopifnot(abs((ypoints-lag(ypoints))[-1L] - grid_by) < sqrt(.Machine$double.eps))
+
+    ## Distribute points over this area and add the corresponding Index:
+    expand_grid(x = xpoints, y = ypoints) |>
+      st_as_sf(coords = c("x","y")) |>
+      addindex(candidates) ->
+      points
 
     ## Find the patches within max_distance:
     candidates <- which(distances[i,] <= max_distance)
@@ -100,7 +129,65 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
     ## Separate into the target and source points:
     target <- points |> filter(Index == i)
     stopifnot(nrow(target)>0L)
-    source <- points |> filter(Index != i)
+    source <- points
+
+    ## Get distances between every target and source point:
+    if(FALSE){
+      ## Very inefficient:
+      pblapply(seq_len(nrow(target)), function(tt){
+        source |>
+          mutate(Distance = st_distance(geometry, target[tt,])) |>
+          mutate(Connectedness = connectedness_fun(Distance)) |>
+          group_by(Index) |>
+          summarise(Sum = sum(Connectedness), N = n(), .groups="drop")
+      }) |>
+        bind_rows() |>
+        group_by(Index) |>
+        summarise(Connectedness = sum(Sum) / sum(N), .groups="drop")
+    }
+
+    ## Calculate mean connectedness to this target patch by source patch and return:
+    source |>
+      mutate(Connectedness = st_distance(source, target) |> connectedness_fun() |> apply(1, mean)) |>
+      as_tibble() |>
+      group_by(Index) |>
+      summarise(Connectedness = mean(Connectedness), .groups="drop") |>
+      mutate(Destination = all_indexes[i], Source = all_indexes[Index]) |>
+      select(Source, Destination, Connectedness)
+  }
+
+  ## Approximation function in R (slow):
+  approxfun_R <- function(i){
+
+    addindex <- function(x, candidates){
+      st_contains_properly(patches |> slice(candidates), x, sparse=FALSE) |>
+        apply(2L, function(y){
+          y <- candidates[which(y)]
+          if(length(y)==0L) return(NA_integer_)
+          stopifnot(length(y)==1L)
+          y
+        }) ->
+        ii
+      x |> mutate(Index = ii) |> filter(!is.na(Index))
+    }
+
+
+    ## Find the patches within max_distance:
+    candidates <- which(distances[i,] <= max_distance)
+    ## Get a bbox:
+    tlscp <- patches |> slice(candidates) |> st_union()
+    bbox <- st_bbox(tlscp)
+
+    ## Distribute points over this area and add the corresponding Index:
+    expand_grid(x = seq(bbox[["xmin"]], bbox[["xmax"]], by=grid_by), y = seq(bbox[["ymin"]], bbox[["ymax"]], by=grid_by)) |>
+      st_as_sf(coords = c("x","y")) |>
+      addindex(candidates) ->
+      points
+
+    ## Separate into the target and source points:
+    target <- points |> filter(Index == i)
+    stopifnot(nrow(target)>0L)
+    source <- points
 
     ## Get distances between every target and source point:
     if(FALSE){

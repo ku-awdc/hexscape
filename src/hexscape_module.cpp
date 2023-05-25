@@ -13,7 +13,7 @@ RcppModuleClassName* invalidate_default_constructor() {
 #define DISABLE_DEFAULT_CONSTRUCTOR() .factory(invalidate_default_constructor)
 
 
-RCPP_MODULE(example_module){
+RCPP_MODULE(hexscape_module){
 
 	using namespace Rcpp;
 	
