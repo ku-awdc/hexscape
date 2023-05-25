@@ -17,6 +17,9 @@ patches <- discretise_voronoi(landscape, farms)
 connectedness_fun <- function(x) 0.5 * 1/x
 max_distance <- 5
 
-connectedness <- generate_connectedness(patches, connectedness_fun, max_distance, grid_resolution=50, sparse=FALSE)
+connectedness <- generate_connectedness(patches, connectedness_fun, max_distance, grid_resolution=20, sparse=FALSE)
 
 c1 <- connectedness
+plot(c1, connectedness*50^2/20^2); abline(0,1)
+
+## TODO: fix for resolution adjustment (i.e. correct for point density)
