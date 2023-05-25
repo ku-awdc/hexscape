@@ -9,10 +9,11 @@
 #' @param verbose verbosity level (0 is silent, 2 is noisy)
 #'
 #' @export
-generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL, grid_resolution=1e3, sparse=TRUE, centroid_distance=TRUE, verbose=2L){
+generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL, grid_resolution=50, sparse=TRUE, centroid_distance=TRUE, verbose=1L){
 
   if(FALSE){
     library("sf")
+    library("pbapply")
     xrange <- c(0, 50)
     yrange <- c(0, 50)
     corners <- tribble(~x, ~y,
@@ -26,16 +27,19 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
     farms <- tibble(Index = 1:100L) |> mutate(geometry = st_sample(landscape, n()) |> st_sfc()) |> st_as_sf()
     patches <- discretise_voronoi(landscape, farms)
 
-    connectedness_fun <- function(x) 0.1 * 1/x
-    max_distance=5; grid_resolution=100; verbose=2L
+    connectedness_fun <- function(x) 0.5 * 1/x
+    max_distance=5; grid_resolution=50; verbose=1L
   }
 
+  ## TODO: checks
+  grid_resolution <- as.integer(grid_resolution)
 
   if(!is.data.frame(patches) || !all(c("Index","geometry") %in% names(patches))){
     stop("The specified argument to patches must be a data frame with Index and geometry columns")
   }
   if(any(patches |> count(Index) |> pull(n) > 1L)) stop("Duplicated Index number detected")
   if(any(is.na(patches[["Index"]]))) stop("Non-finite Index number detected")
+  patches <- patches |> arrange(Index)
   all_indexes <- patches[["Index"]]
 
   if(verbose > 1L) cat("Calculating pairwise distances between patches...\n")
@@ -66,33 +70,58 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
   }
 
   ## Now we can do the numerical approximation:
-
   grid_by <- max_distance / grid_resolution
+  patches |>
+    mutate(Area = st_area(geometry) |> as.numeric()) |>
+    mutate(Points = Area / (grid_by*grid_by)) |>
+    pull(Points) |>
+    round() ->
+    grid_total_points
+  if(any(grid_total_points == 0L)) stop("One or more patches with zero points")
+  ## TODO: make the points on pre-specified x and y coords so that grid_total_points is consistent
+  ## TODO: expand C++ class so it does more
+
+  ## Pre-calculate connectedness for a regular grid with height/width = 2*max_distance:
+  expand_grid(Col = seq(-grid_resolution, grid_resolution, by=1L),
+              Row = seq(-grid_resolution, grid_resolution, by=1L)
+              ) |>
+    mutate(x = Row * grid_by, y = Col * grid_by) |>
+    st_as_sf(coords = c("x","y"), crs = st_crs(patches)) |>
+    mutate(Distance = st_point(c(0,0)) |> st_sfc(crs = st_crs(patches)) |> st_distance(geometry) |> as.numeric()) |>
+    ## TODO: bearing
+    mutate(Connectedness = case_when(
+      Col == 0L & Row == 0L ~ NA_real_,
+      Distance > max_distance ~ 0.0,
+      TRUE ~ connectedness_fun(Distance)
+    )) ->
+    grid_points
+
+  # ggplot(grid_points, aes(col=log10(Connectedness+1))) + geom_sf()
+
+  grid_matrix <- matrix(grid_points[["Connectedness"]], ncol=(2L*grid_resolution+1L), nrow=(2L*grid_resolution+1L))
+  conn_fun <- hexscape:::RcppConnectedness$new(grid_resolution, grid_matrix)
 
   ## Approximation function in R/C++:
   approxfun <- function(i){
 
-    ## Pre-calculate connectedness for a regular grid with height/width = 2*max_distance:
-    # grid
-
     ## Helper function - TODO: C++ code
     addindex <- function(x, candidates){
-      st_contains_properly(patches, x, sparse=FALSE) |>
+      st_contains_properly(candidates, x, sparse=FALSE) |>
         apply(2L, function(y){
-          y <- candidates[which(y)]
-          if(length(y)==0L) return(NA_integer_)
+          y <- which(y)-1L
+          if(length(y)==0L) return(-1L)
           stopifnot(length(y)==1L)
           y
         }) ->
         ii
-      x |> mutate(Index = ii) |> filter(!is.na(Index))
+      x |> mutate(Which = ii)
     }
 
     ## Find the patches within max_distance:
     candidates <- patches |> slice(which(distances[i,] <= max_distance))
 
     ## Define a bbox around the target patch and calculate central x and y points:
-    bbox <- candidates |> filter(Index==i) |> st_bbox()
+    bbox <- patches |> slice(i) |> st_bbox()
     stopifnot(!is.na(bbox))
     xpoints_central <- seq(bbox[["xmin"]]+grid_by/2, bbox[["xmax"]], by=grid_by)
     ypoints_central <- seq(bbox[["ymin"]]+grid_by/2, bbox[["ymax"]], by=grid_by)
@@ -116,47 +145,35 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
       st_as_sf(coords = c("x","y")) |>
       addindex(candidates) ->
       points
+    stopifnot(all(!is.na(points[["Which"]])))
+    stopifnot(nrow(points)==(length(xpoints)*length(ypoints)))
 
-    ## Find the patches within max_distance:
-    candidates <- which(distances[i,] <= max_distance)
-    ## Get a bbox:
-    tlscp <- patches |> slice(candidates) |> st_union()
-    bbox <- st_bbox(tlscp)
+    points |> as_tibble() |> count(Which) |>
+      arrange(Which) |> filter(Which>=0L) |>
+      full_join(
+        tibble(Which = (1:nrow(candidates))-1L),
+        by="Which"
+      ) |>
+      replace_na(list(n = 0L)) |> pull(n) ->
+      points_within
+    stopifnot(length(points_within)==nrow(candidates))
 
-    ## Distribute points over this area and add the corresponding Index:
-    expand_grid(x = seq(bbox[["xmin"]], bbox[["xmax"]], by=grid_by), y = seq(bbox[["ymin"]], bbox[["ymax"]], by=grid_by)) |>
-      st_as_sf(coords = c("x","y")) |>
-      addindex(candidates) ->
-      points
+    points_outside <- pmax(0L, grid_total_points[candidates[["Index"]]] - points_within)
 
-    ## Separate into the target and source points:
-    target <- points |> filter(Index == i)
-    stopifnot(nrow(target)>0L)
-    source <- points
-
-    ## Get distances between every target and source point:
-    if(FALSE){
-      ## Very inefficient:
-      pblapply(seq_len(nrow(target)), function(tt){
-        source |>
-          mutate(Distance = st_distance(geometry, target[tt,])) |>
-          mutate(Connectedness = connectedness_fun(Distance)) |>
-          group_by(Index) |>
-          summarise(Sum = sum(Connectedness), N = n(), .groups="drop")
-      }) |>
-        bind_rows() |>
-        group_by(Index) |>
-        summarise(Connectedness = sum(Sum) / sum(N), .groups="drop")
-    }
+    ## Get connectedness:
+    target <- which(patches[["Index"]][i] == candidates[["Index"]])
+    conn_fun$get_connectedness(length(ypoints_central), length(xpoints_central),
+                               target-1L, grid_resolution, points_outside,
+                               matrix(points[["Which"]], nrow=length(ypoints), ncol=length(xpoints))
+                               ) ->
+      connectedness
 
     ## Calculate mean connectedness to this target patch by source patch and return:
-    source |>
-      mutate(Connectedness = st_distance(source, target) |> connectedness_fun() |> apply(1, mean)) |>
-      as_tibble() |>
-      group_by(Index) |>
-      summarise(Connectedness = mean(Connectedness), .groups="drop") |>
-      mutate(Destination = all_indexes[i], Source = all_indexes[Index]) |>
-      select(Source, Destination, Connectedness)
+    tibble(
+      Source = all_indexes[i],
+      Target = candidates[["Index"]],
+      Connectedness = connectedness
+    )
   }
 
   ####################
@@ -174,7 +191,6 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
         ii
       x |> mutate(Index = ii) |> filter(!is.na(Index))
     }
-
 
     ## Find the patches within max_distance:
     candidates <- which(distances[i,] <= max_distance)
@@ -222,11 +238,29 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
 
   ## Get output:
   seq_len(nrow(patches)) |>
-    pblapply(approxfun_R) |>
+    pblapply(approxfun) |>
     bind_rows() ->
     rv
 
-  return(rv)
+  if(sparse) return(rv)
+
+  up <- unique(patches[["Index"]])
+
+  rv |>
+    full_join(
+      expand_grid(Source = up, Target = up),
+      by=c("Source","Target")
+    ) |>
+    replace_na(list(Connectedness = 0.0)) |>
+    arrange(Source, Target) |>
+    pull(Connectedness) |>
+    matrix(nrow = length(up), ncol = length(up)) ->
+    rvd
+
+  # diag(rvd)
+  # plot(rvd, t(rvd))
+
+  return(rvd)
 
   system.time(output <- approxfun_R(1))
   system.time(output <- approxfun(1))
