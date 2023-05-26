@@ -239,7 +239,9 @@ generate_connectedness <- function(patches, connectedness_fun, max_distance=NULL
   ## Get output:
   seq_len(nrow(patches)) |>
     pblapply(approxfun) |>
-    bind_rows() ->
+    bind_rows() |>
+    ## Correction for density of grid:
+    mutate(Connectedness = Connectedness*grid_by*grid_by) ->
     rv
 
   if(sparse) return(rv)

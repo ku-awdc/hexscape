@@ -1,7 +1,7 @@
 Package: hexscape
 Title: Aggregation of Spatial Data into Discrete Patches using Simple Features
-Date: 2023-05-24
-Version: 0.6.0-1
+Date: 2023-05-26
+Version: 0.6.1-1
 Authors@R: 
     c(person(given = "Matt",
            family = "Denwood",
