@@ -109,7 +109,7 @@ generate_neighbours <- function(patches, calculate_border=TRUE, buffer_dist=0.00
 
           # Adjust for the buffer distance:
           intsct <- st_intersection(x$geometry, x$nb_geometry)
-          area <- as.numeric(st_area(intsct), units="m")
+          area <- as.numeric(st_area(intsct), units = "m")
           bdr <- (area - (buffer_dist*2)) / (buffer_dist*2)
 
           lstr <-
