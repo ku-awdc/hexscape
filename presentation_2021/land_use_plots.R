@@ -1,6 +1,6 @@
 ## Code to make plots and animations for Mossa's presentation July 2021
 
-library("HexScape")
+library("hexscape")
 library("animation")
 library("ggthemes")
 library("pbapply")
@@ -41,7 +41,7 @@ if(FALSE){
 
   gmap_dk <- ggmap_bbox(gmap_dk)
 
-  set_storage_folder("~/Documents/Resources/Datasets/HexScape")
+  set_storage_folder("~/Documents/Resources/Datasets/hexscape")
   land_use_dk <- extract_corine("DK", verbose=2L)
 
   save(gmap_dk, land_use_dk, file="presentation_2021/gmap_dk.rda")

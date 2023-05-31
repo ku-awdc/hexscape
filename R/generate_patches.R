@@ -18,7 +18,7 @@
 #'
 #' xrange <- c(0, 50)
 #' yrange <- c(0, 50)
-#' corners <- tribble(~x, ~y,
+#' corners <- tibble::tribble(~x, ~y,
 #'     xrange[1], yrange[1],
 #'     xrange[2], yrange[1],
 #'     xrange[2], yrange[2],

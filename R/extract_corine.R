@@ -51,71 +51,49 @@ extract_corine <- function(country_code, refresh=FALSE, verbose=0L, ...){
   }
 
   st <- Sys.time()
-  get_corine_sf <- function(cc) {
+  get_corine_sf <- function(cc){
+
     code <- codes[cc]
-    if (verbose > 1L) {
-      cat("Extracting code ", code, " ... ", sep = "")
+    if(verbose > 1L){
+      cat("Extracting code ", code, " ... ", sep="")
 
       ## hack:
-      retfun <- function(rv) {
-        cat(
-          round(cc / length(codes) * 100),
-          "% complete after ",
-          round(as.numeric(Sys.time() - st, units = "mins")),
-          " minutes\n",
-          sep = ""
-        )
+      retfun <- function(rv){
+        cat(round(cc/length(codes)*100), "% complete after ", round(as.numeric(Sys.time()-st, units="mins")), " minutes\n", sep="")
         return(rv)
       }
-    } else{
-      retfun <- function(rv)
-        rv
+    }else{
+      retfun <- function(rv) rv
     }
 
-    ## First extract the code and filter to only those that intersect
-    ## anything we are interested in:
+    ## First extract the code and filter to only those that intersect anything we are interested in:
     obj <- layers$name %>%
-      `names<-`(., .) %>%
+      `names<-`(.,.) %>%
       as.list() %>%
-      lapply(function(l)
-        suppressWarnings(st_read(
-          corine_path,
-          query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code),
-          layer = l,
-          quiet = TRUE
-        ))) %>%
-      `[`(sapply(., nrow) > 0) %>%
-      lapply(function(x)
-        x %>% `colnames<-`(., case_when(
-          colnames(.) %in% c("Shape", "Layer") ~ colnames(.),
-          TRUE ~ toupper(colnames(.))
-        ))) %>%
+      lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
+      `[`(sapply(.,nrow)>0) %>%
+      lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
       bind_rows()
 
-    if (nrow(obj) == 0)
-      return(retfun(NULL))
+    if(nrow(obj)==0) return(retfun(NULL))
 
     obj <- obj %>%
       st_transform(st_crs(map)) %>%
-      mutate(use = st_intersects(Shape, mapsf, sparse = FALSE)[, 1]) %>%
+      mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) %>%
       filter(use) %>%
       select(-use)
 
-    if (nrow(obj) == 0)
-      return(retfun(NULL))
+    if(nrow(obj)==0) return(retfun(NULL))
 
     ## Then make intersections with each of the NUTS3 areas we have:
     o2 <- map %>%
       split(.$NUTS_ID) %>%
       map(
         ~ obj %>%
-          mutate(use = st_intersects(Shape, .x$geometry, sparse = FALSE)[, 1]) %>%
+          mutate(use = st_intersects(Shape, .x$geometry, sparse=FALSE)[,1]) %>%
           filter(use) %>%
           select(-use) %>%
-          mutate(
-            Shape = st_intersection(Shape, .x$geometry),
-            NUTS_ID = .x$NUTS_ID
-          )
+          mutate(Shape = st_intersection(Shape, .x$geometry), NUTS_ID=.x$NUTS_ID)
       ) %>%
       bind_rows()
 
@@ -123,39 +101,30 @@ extract_corine <- function(country_code, refresh=FALSE, verbose=0L, ...){
   }
 
   if(verbose > 0L) cat("Extracting land use data relating to ", length(codes), " CLC codes for ", country_code, "\n[This will take some time]\n", sep="")
-  if (verbose == 1L) {
+  if(verbose==1L){
     corine_raw <- pblapply(seq_along(codes), get_corine_sf) %>%
       bind_rows() %>%
       select(CLC_CODE = CODE_18, everything())
-  } else{
+  }else{
     corine_raw <- lapply(seq_along(codes), get_corine_sf) %>%
       bind_rows() %>%
       select(CLC_CODE = CODE_18, everything())
   }
 
   corine_sf <- corine_raw %>%
-    left_join(clc, by = "CLC_CODE") %>%
-    left_join(map %>% as_tibble() %>% select(NUTS_ID, CNTR_CODE, NUTS_NAME),
-              by = "NUTS_ID") %>%
+    left_join(clc, by="CLC_CODE") %>%
+    left_join(map %>% as_tibble() %>% select(NUTS_ID, CNTR_CODE, NUTS_NAME), by="NUTS_ID") %>%
     select(CNTR_CODE, NUTS_ID, CLC_CODE, OBJECTID, AREA_HA, OBJECTID, Shape)
 
-  if (verbose > 0L)
-    cat("Saving results...\n", sep = "")
-  saveRDS(corine_sf, savename, compress = TRUE)
+  if(verbose > 0L) cat("Saving results...\n", sep="")
+  saveRDS(corine_sf, savename, compress=TRUE)
 
-  if (verbose > 0L)
-    cat("Done\n", sep = "")
-
+  if(verbose > 0L) cat("Done\n", sep="")
 
   corine_sf <- corine_sf %>%
-    left_join(clc, by = "CLC_CODE") %>%
-    select(CNTR_CODE,
-           NUTS_ID,
-           CLC_CODE,
-           CLC_LABEL1,
-           CLC_LABEL2,
-           CLC_LABEL3,
-           everything())
+    left_join(clc, by="CLC_CODE") %>%
+    select(CNTR_CODE, NUTS_ID, CLC_CODE, CLC_LABEL1, CLC_LABEL2, CLC_LABEL3, everything())
 
   return(corine_sf)
+
 }

@@ -1,8 +1,8 @@
 #' ## Simple example for Mossa
 
-library(tidyverse)
-library(sf)
-library(HexScape)
+library("tidyverse")
+library("sf")
+library("hexscape")
 
 
 # A somewhat complex landscape:

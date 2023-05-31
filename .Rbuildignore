@@ -1,7 +1,8 @@
-^HexScape\.Rproj$
+^hexscape\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^notebooks$
 ^patches$
 ^presentation_2021$
-^vignettes$
+^reports$
+^data-raw$

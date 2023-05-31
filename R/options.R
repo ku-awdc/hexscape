@@ -1,16 +1,16 @@
-#' Options for the HexScape package
+#' Options for the hexscape package
 #'
 #' @name hexscape_options
-#' @aliases hexscape_options HexScape_options hexscape_getOption hexscape_getOption
+#' @aliases hexscape_options hexscape_options hexscape_getOption hexscape_getOption
 #'
 #' @description
-#' Utility function to set/get options for the HexScape package, most notably the local folder used to store intermediate objects.
+#' Utility function to set/get options for the hexscape package, most notably the local folder used to store intermediate objects.
 #'
 #' @details
 #' The following options can be specified:
 #'
 #' \itemize{
-#' \item \bold{storage_folder} - the path to a folder to store intermediate objects created by HexScape.
+#' \item \bold{storage_folder} - the path to a folder to store intermediate objects created by hexscape.
 #' }
 #'
 #' @param name the name of the option to get the current value of - for a  list of available options, see details below.
@@ -18,7 +18,7 @@
 #'
 #' @keywords methods
 #' @return The current value of all available HexScaoe options (after applying any changes specified) is returned invisibly as a named list.
-#' @seealso \code{\link{HexScape}}
+#' @seealso \code{\link{hexscape}}
 #'
 NULL
 

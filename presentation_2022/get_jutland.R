@@ -1,9 +1,9 @@
 library('tidyverse')
-library('HexScape')
+library('hexscape')
 
 ## 1) Set path to folder with raw spatial data and intermediate objects:
 
-set_storage_folder("~/Documents/Resources/Datasets/HexScape")
+set_storage_folder("~/Documents/Resources/Datasets/hexscape")
 # then put clc_legend.csv and u2018_clc2018_v2020_20u1_geoPackage into the raw_data folder
 
 ## 2) Process and cache corine data for Denmark:

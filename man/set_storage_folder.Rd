@@ -2,7 +2,7 @@
 % Please edit documentation in R/set_storage_folder.R
 \name{set_storage_folder}
 \alias{set_storage_folder}
-\title{Set storage folder for HexScape package}
+\title{Set storage folder for hexscape package}
 \usage{
 set_storage_folder(folder)
 }
@@ -10,5 +10,5 @@ set_storage_folder(folder)
 \item{folder}{}
 }
 \description{
-Set storage folder for HexScape package
+Set storage folder for hexscape package
 }

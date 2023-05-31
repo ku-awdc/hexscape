@@ -1,7 +1,7 @@
-Package: HexScape
-Title: Aggregation of Spatial Data into Hexagonal Patches using Simple Features
-Date: 2022-02-23
-Version: 0.2.1-1
+Package: hexscape
+Title: Aggregation of Spatial Data into Discrete Patches using Simple Features
+Date: 2023-05-26
+Version: 0.6.1-1
 Authors@R: 
     c(person(given = "Matt",
            family = "Denwood",
@@ -10,27 +10,38 @@ Authors@R:
     person(given = "Mossa",
            family = "Merhi",
            role = c("aut"),
-           email = "mossa@sund.ku.dk")
+           email = "mossa@sund.ku.dk"),
+    person(given = "Carlijn",
+           family = "Bogaardt",
+           role = c("aut"),
+           email = "Carlijn.Bogaardt@glasgow.ac.uk")
     )
 Description: TODO
 License: GPL (>= 3)
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 Depends:
-    tidyverse
+    tidyverse,
+    R (>= 4.1.0)
 Imports:
+    Rcpp,
     sf,
     rmapshaper,
     igraph,
     pbapply,
-    eurostat
+    eurostat,
+    units,
+    qs (>= 0.25)
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
     markdown,
     spelling
+LinkingTo: 
+    Rcpp
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Language: en-GB
+LazyData: true
+SystemRequirements: C++17

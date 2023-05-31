@@ -9,10 +9,9 @@
 #' Animals don't stop if breeding capacity = 0
 #' Less likely to stop if there is insufficient breeding space
 
-library(HexScape)
-library(sf)
+library("hexscape")
+library("sf")
 library(magrittr)
-
 devtools::load_all()
 
 # Did you know about this?
