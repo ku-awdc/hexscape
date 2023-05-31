@@ -2,7 +2,7 @@
 % Please edit documentation in R/create_path_if_needed.R
 \name{create_path_if_needed}
 \alias{create_path_if_needed}
-\title{Title}
+\title{Ensure a path exists}
 \usage{
 create_path_if_needed(path_to_file)
 }
@@ -13,5 +13,5 @@ create_path_if_needed(path_to_file)
 \code{path_to_file}
 }
 \description{
-Title
+This creates directories (recursively) of the given path.
 }

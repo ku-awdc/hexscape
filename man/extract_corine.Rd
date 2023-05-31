@@ -2,23 +2,12 @@
 % Please edit documentation in R/extract_corine.R
 \name{extract_corine}
 \alias{extract_corine}
-\alias{validate_corine_cache}
-\alias{regenerate_corine_cache}
 \title{Extract land use data for a specific country}
 \usage{
-extract_corine(
-  map,
-  use_cache = validate_corine_cache(),
-  simplify_keep = 0.25,
-  verbose = 1L
-)
-
-validate_corine_cache()
-
-regenerate_corine_cache(verbose = 1L)
+extract_corine(country_code, refresh = FALSE, verbose = 0L, ...)
 }
 \arguments{
-\item{verbose}{}
+\item{nuts_year}{}
 }
 \description{
 Extract land use data for a specific country

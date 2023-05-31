@@ -12,9 +12,6 @@ sfc_as_cols(x, geometry, names = c("x", "y"))
 \arguments{
 \item{names}{}
 }
-\value{
-
-}
 \description{
 Title
 }
