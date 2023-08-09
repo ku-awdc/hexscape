@@ -8,16 +8,16 @@ generate_connectedness(
   patches,
   connectedness_fun,
   max_distance = NULL,
-  grid_resolution = 1000,
+  grid_resolution = 50,
   sparse = TRUE,
   centroid_distance = TRUE,
-  verbose = 2L
+  verbose = 1L
 )
 }
 \arguments{
 \item{patches}{a data frame containing polygons and indexes, such as that created by \code{\link{generate_patches}}}
 
-\item{connectedness_fun}{a vectorised function mapping distances to connectedness i.e. a spatial kernal}
+\item{connectedness_fun}{a vectorised function mapping distances to connectedness i.e. a spatial kernal (TODO: may also take a second argument giving the bearing)}
 
 \item{max_distance}{the maximum distance beyond which connectedness is assumed to be negligable - default is to determine this automatically}
 

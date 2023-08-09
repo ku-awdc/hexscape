@@ -11,6 +11,8 @@
 #' @examples
 sample_points <- function(map, size=1L, sample_scale=100L, verbose=1L){
 
+  ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
+
   stopifnot(inherits(map, "sf"), inherits(map, "data.frame"), "Index" %in% names(map))
   stopifnot(all(table(map[["Index"]])==1L))
 
