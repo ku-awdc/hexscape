@@ -10,6 +10,8 @@
 randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=10L, max_tries=3L, verbose=1L){
 
   ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
+  ## TODO: change active geometry to RandomPoint in return value (and maybe add the line showing the change, as well as a jitter distance etc?)
+  
 
   stopifnot(inherits(map, "sf"), inherits(map, "data.frame"))
   stopifnot(inherits(points, "sf"), inherits(points, "data.frame"))
