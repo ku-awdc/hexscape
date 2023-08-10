@@ -28,7 +28,12 @@ randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=10L, m
 
   ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
   ## TODO: change active geometry to RandomPoint in return value (and maybe add the line showing the change, as well as a jitter distance etc?)
-
+  ## TODO: give a warning if not every cell is a neighbour of another cell (the "Island problem") i.e.:
+  #voronoi <- discretise_voronoi(map, points)
+  #st_distance(voronoi, voronoi$centroid) |>
+  #    apply(2, function(x) order(x)[1:randomise_size], simplify=TRUE) ->
+  #    closest
+  #if(length(table(closest) < nrow(points)) || any(table(closest)<2L)) warning(“One or more cell is identifiable: randomise_size is too small!”)
 
   stopifnot(inherits(map, "sf"), inherits(map, "data.frame"))
   stopifnot(inherits(points, "sf"), inherits(points, "data.frame"))
