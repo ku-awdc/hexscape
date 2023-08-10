@@ -51,6 +51,7 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
   }
 
   ## Then do the extraction:
+  layers <- st_layers(corine_path)
   st <- Sys.time()
   get_corine_sf <- function(cc){
 
@@ -77,12 +78,15 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
         set_names() %>%
         lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
         `[`(sapply(.,nrow)>0) %>%
-        lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
+        lapply(function(x){
+          x %>%
+            `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.)))) %>%
+            st_transform(st_crs(mapsf))
+        }) %>%
         bind_rows()
     }
 
     obj |>
-      st_transform(st_crs(mapsf)) |>
       mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) |>
       filter(use) |>
       select(-use) ->
@@ -310,7 +314,11 @@ regenerate_corine_cache <- function(verbose=1L){
       set_names() %>%
       lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
       `[`(sapply(.,nrow)>0) %>%
-      lapply(function(x) x %>% `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.))))) %>%
+      lapply(function(x){
+        x %>%
+          `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.)))) %>%
+          st_transform(st_crs(mapsf))
+      }) %>%
       bind_rows()
 
     ## Then save:
