@@ -17,44 +17,49 @@
 #'                    xrange[1], yrange[1]
 #' )
 #' library("sf")
-#' landscape <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
+#' map <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
 #' points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf()
-#' random <- randomise_voronoi(landscape, points) |> mutate(Index = 1:n())
+#' random <- randomise_voronoi(map, points) |> mutate(Index = 1:n())
 #' ggplot(random) + geom_sf_label(aes(label=Index)) + geom_sf_label(aes(geometry=RandomPoint, label=Index), col="red")
 #'
 #'
 #' @export
-randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=10L, max_tries=3L, verbose=1L){
+randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=3L, max_tries=3L, verbose=1L){
 
   ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
   ## TODO: change active geometry to RandomPoint in return value (and maybe add the line showing the change, as well as a jitter distance etc?)
-  ## TODO: give a warning if not every cell is a neighbour of another cell (the "Island problem") i.e.:
-  #voronoi <- discretise_voronoi(map, points)
-  #st_distance(voronoi, voronoi$centroid) |>
-  #    apply(2, function(x) order(x)[1:randomise_size], simplify=TRUE) ->
-  #    closest
-  #if(length(table(closest) < nrow(points)) || any(table(closest)<2L)) warning(“One or more cell is identifiable: randomise_size is too small!”)
 
   stopifnot(inherits(map, "sf"), inherits(map, "data.frame"))
   stopifnot(inherits(points, "sf"), inherits(points, "data.frame"))
 
   stopifnot(st_crs(map)==st_crs(points))
-  mapsf <- st_union(map)
 
-  ## Delegate to get Voronoi tesselation:
-  voronoi <- discretise_voronoi(map, points) |> mutate(Index = 1:n())
+  ## Delegate to get simple Voronoi tesselation:
+  bbox <- map |> st_union() |> st_bbox()
+  bmap <- matrix(bbox[c(1,2,1,4,3,4,3,2,1,2)], ncol=2, byrow=TRUE) |> list() |> list() |> st_multipolygon() |> st_sfc() |> st_as_sf()
+  voronoi <- discretise_voronoi(bmap, points) |> mutate(Index = 1:n())
+
+  ## Then use pairwise distance matrices to get the closest S centroids to
+  ## each point:
+  st_distance(voronoi) |>
+    ## Cheat by making the distance to self negative:
+    {function(x) x - diag(nrow(points))}() |>
+    apply(2, function(x) rank(x, ties.method="random")[1:randomise_size], simplify=FALSE) ->
+    closest
+  stop("THIS RANK IS BROKEN")
+  stopifnot(nrow(points)==length(closest))
+
+  ## And calculate the selection probability based on frequency of appearance
+  ## (all should appear at least once):
+  freq <- closest |> unlist() |> factor(levels=seq_len(nrow(points))) |> table()
+  stopifnot(length(freq) == nrow(points), all(freq)>=1L)
+
+  ## Then
 
   ## Delegate to get sampled points:
   cat("Getting random points...\n")
   samples <- sample_points(voronoi, size=sample_size, verbose=verbose) |>
     mutate(SampleIndex = 1:n())
-
-  ## Then use pairwise distance matrices to get the closest S centroids to
-  ## each point:
-  st_distance(voronoi, voronoi$centroid) |>
-    apply(2, function(x) order(x)[1:randomise_size], simplify=FALSE) ->
-    closest
-  stopifnot(nrow(voronoi)==length(closest))
 
   ## And then sample a point from one of the corresponding Voronois
   if(verbose>0L) cat("Running reassortment...\n")
