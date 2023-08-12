@@ -8,7 +8,7 @@ randomise_voronoi(
   map,
   points,
   randomise_size = 5L,
-  sample_size = 10L,
+  sample_size = 3L,
   max_tries = 3L,
   verbose = 1L
 )
@@ -30,10 +30,12 @@ corners <- tribble(~x, ~y,
                    xrange[1], yrange[1]
 )
 library("sf")
-landscape <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
+map <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
 points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf()
-random <- randomise_voronoi(landscape, points) |> mutate(Index = 1:n())
-ggplot(random) + geom_sf_label(aes(label=Index)) + geom_sf_label(aes(geometry=RandomPoint, label=Index), col="red")
+random <- randomise_voronoi(map, points) |> mutate(Index = 1:n())
+ggplot(random) +
+  geom_sf(aes(geometry=RandomShift)) +
+  geom_sf(aes(geometry=RandomPoint))
 
 
 }

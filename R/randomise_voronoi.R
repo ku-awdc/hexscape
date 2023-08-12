@@ -20,14 +20,15 @@
 #' map <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
 #' points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf()
 #' random <- randomise_voronoi(map, points) |> mutate(Index = 1:n())
-#' ggplot(random) + geom_sf_label(aes(label=Index)) + geom_sf_label(aes(geometry=RandomPoint, label=Index), col="red")
+#' ggplot(random) +
+#'   geom_sf(aes(geometry=RandomShift)) +
+#'   geom_sf(aes(geometry=RandomPoint))
 #'
 #'
 #' @export
 randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=3L, max_tries=3L, verbose=1L){
 
   ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
-  ## TODO: change active geometry to RandomPoint in return value (and maybe add the line showing the change, as well as a jitter distance etc?)
 
   stopifnot(inherits(map, "sf"), inherits(map, "data.frame"))
   stopifnot(inherits(points, "sf"), inherits(points, "data.frame"))
@@ -36,46 +37,57 @@ randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=3L, ma
 
   ## Delegate to get simple Voronoi tesselation:
   bbox <- map |> st_union() |> st_bbox()
-  bmap <- matrix(bbox[c(1,2,1,4,3,4,3,2,1,2)], ncol=2, byrow=TRUE) |> list() |> list() |> st_multipolygon() |> st_sfc() |> st_as_sf()
+  bmap <- matrix(bbox[c(1,2,1,4,3,4,3,2,1,2)], ncol=2, byrow=TRUE) |> list() |> list() |> st_multipolygon() |> st_sfc() |> st_as_sf(crs = st_crs(map))
   voronoi <- discretise_voronoi(bmap, points) |> mutate(Index = 1:n())
 
   ## Then use pairwise distance matrices to get the closest S centroids to
   ## each point:
   st_distance(voronoi) |>
+    set_units("m") |>
     ## Cheat by making the distance to self negative:
-    {function(x) x - diag(nrow(points))}() |>
-    apply(2, function(x) rank(x, ties.method="random")[1:randomise_size], simplify=FALSE) ->
+    {function(x) x - (diag(nrow(points)) |> set_units("m"))}() |>
+    apply(2, function(x) which(rank(x, ties.method="random") <= randomise_size), simplify=FALSE) ->
     closest
-  stop("THIS RANK IS BROKEN")
   stopifnot(nrow(points)==length(closest))
 
   ## And calculate the selection probability based on frequency of appearance
   ## (all should appear at least once):
-  freq <- closest |> unlist() |> factor(levels=seq_len(nrow(points))) |> table()
-  stopifnot(length(freq) == nrow(points), all(freq)>=1L)
+  freq <- closest |> unlist() |> factor(levels=seq_len(nrow(points))) |> table() |> as.numeric()
+  stopifnot(length(freq) == nrow(points), all(freq>=1L), sum(freq)==(nrow(points)*randomise_size))
 
-  ## Then
+  ## Then do an st_intersection of the voronoi cells with the provided map:
+  mapsf <- map |> st_union()
+  voronoi |>
+    mutate(geometry = st_intersection(geometry, mapsf)) ->
+    voronoi
 
   ## Delegate to get sampled points:
-  cat("Getting random points...\n")
-  samples <- sample_points(voronoi, size=sample_size, verbose=verbose) |>
-    mutate(SampleIndex = 1:n())
+  if(verbose>0L) cat("Getting random points...\n")
+  sample_points(voronoi, size=sample_size, verbose=verbose) |>
+    mutate(SampleIndex = 1:n()) |>
+    full_join(
+      tibble(Index = seq_len(nrow(points)), SampleProb = 1/freq),
+      by="Index"
+    ) ->
+    samples
 
-  ## And then sample a point from one of the corresponding Voronois
+  ## And then sample a point from one of the corresponding Voronoi cells:
   if(verbose>0L) cat("Running reassortment...\n")
   for(rep in seq_len(max_tries)){
     used <- numeric(length(closest))
+    #allchosen <- vector('list', length=length(closest))
 
     if(verbose>0L) pb <- txtProgressBar(style=3)
     for(i in seq_along(closest)){
       samples |>
         filter(Index %in% closest[[i]], !SampleIndex %in% used) |>
-        slice_sample(n=1L) ->
+        slice_sample(n=1L, weight_by=SampleProb) ->
         chosen
 
       ## Detect failed algorithm to restart:
       if(nrow(chosen)==0L) break
       stopifnot(nrow(chosen)==1L)
+      #allchosen[[i]] <- chosen
 
       if(i==1L){
         ## Set up input data frame for output:
@@ -92,7 +104,11 @@ randomise_voronoi <- function(map, points, randomise_size=5L, sample_size=3L, ma
     if(!any(used==0L)) break
     if(verbose>0L) cat("Algorithm failed, trying again...\n")
   }
+  #allchosen |> bind_rows() |> count(Index)
   if(any(used==0L)) stop("Algorithm failed more than the specified maximum number of tries - you could try re-running the function")
+
+  points[["RandomShift"]] = st_sfc(mapply(function(a,b){st_cast(st_union(a,b),"LINESTRING")}, st_geometry(points), points[["RandomPoint"]], SIMPLIFY=FALSE), crs = st_crs(points))
+st_geometry(points) <- "RandomPoint"
 
   return(points)
 }

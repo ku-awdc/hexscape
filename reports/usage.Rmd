@@ -330,32 +330,26 @@ This is done in a way that attempts to preserve farm density by picking from the
 We can see how far each farm has moved using the following code:
 
 ```{r}
-random_farms |>
-  mutate(Change = st_sfc(mapply(function(a,b){st_cast(st_union(a,b),"LINESTRING")}, point, RandomPoint, SIMPLIFY=FALSE), crs = st_crs(point))) ->
-  random_farms
-
 ggplot() +
   geom_sf(data=load_map("DK032")) +
   geom_sf(data=dk032_farmland, fill="dark green", alpha=0.5) +
   geom_sf(aes(geometry=point), random_farms, col="red") +
   geom_sf(aes(geometry=RandomPoint), random_farms, col="green") +
-  geom_sf(aes(geometry=Change), random_farms) +
+  geom_sf(aes(geometry=RandomShift), random_farms) +
   theme_void()
 ```
 
 Increasing the randomise_size argument and re-running the code should result in farms moving on average further:
 
 ```{r}
-randomise_voronoi(dk032_farmland, fake_farms, randomise_size=25L, verbose=0L) |>
-  mutate(Change = st_sfc(mapply(function(a,b){st_cast(st_union(a,b),"LINESTRING")}, point, RandomPoint, SIMPLIFY=FALSE), crs = st_crs(point))) ->
-  random_farms
+random_farms <- randomise_voronoi(dk032_farmland, fake_farms, randomise_size=25L, verbose=0L)
 
 ggplot() +
   geom_sf(data=load_map("DK032")) +
   geom_sf(data=dk032_farmland, fill="dark green", alpha=0.5) +
   geom_sf(aes(geometry=point), random_farms, col="red") +
   geom_sf(aes(geometry=RandomPoint), random_farms, col="green") +
-  geom_sf(aes(geometry=Change), random_farms) +
+  geom_sf(aes(geometry=RandomShift), random_farms) +
   theme_void()
 ```
 

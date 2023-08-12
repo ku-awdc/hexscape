@@ -7,7 +7,7 @@
 #' @param simplify_keep passed on to \code{\link[rmapshaper]{ms_simplify}}
 #'
 #' @importFrom pbapply pblapply pbsapply
-#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid st_is_valid st_dimension st_as_sf st_centroid
+#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid st_is_valid st_dimension st_as_sf st_centroid st_geometry
 #' @importFrom rmapshaper ms_simplify
 #' @importFrom units set_units
 #' @importFrom qs qsave qread
