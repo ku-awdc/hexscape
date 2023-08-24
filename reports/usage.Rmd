@@ -316,7 +316,7 @@ TODO:  add a buffer argument for sample_points so that we can ensure that each s
 A utility function is also provided to randomly re-place each provided point into a new location based on Voronoi tesselation.  For example, starting with the fake farms and Corine-based farmland that we had before, we can ask for a new spatial location for each farm somewhere within the nearest 5 Voronoi tesselated spatial areas like so:
 
 ```{r}
-random_farms <- randomise_voronoi(dk032_farmland, fake_farms, randomise_size=5L, verbose=0L)
+random_farms <- randomise_voronoi(dk032_farmland, fake_farms, randomise_size=5L, additional_info=TRUE, verbose=0L)
 ```
 
 The output is the same as the input data frame, except that we have an additional column RandomPoint that contains the new spatial location:
@@ -333,6 +333,8 @@ We can see how far each farm has moved using the following code:
 ggplot() +
   geom_sf(data=load_map("DK032")) +
   geom_sf(data=dk032_farmland, fill="dark green", alpha=0.5) +
+  geom_sf(aes(geometry=VoronoiMasked), random_farms, col="dark green", alpha=0.1) +
+  geom_sf(aes(geometry=VoronoiCell), random_farms, col="dark blue", alpha=0.1) +
   geom_sf(aes(geometry=point), random_farms, col="red") +
   geom_sf(aes(geometry=RandomPoint), random_farms, col="green") +
   geom_sf(aes(geometry=RandomShift), random_farms) +

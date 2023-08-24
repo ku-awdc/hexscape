@@ -2,22 +2,44 @@
 % Please edit documentation in R/randomise_voronoi.R
 \name{randomise_voronoi}
 \alias{randomise_voronoi}
-\title{Title}
+\title{Randomise locations of points based on Voronoi tesselation}
 \usage{
 randomise_voronoi(
   map,
   points,
   randomise_size = 5L,
+  from_type = "point",
+  to_type = "voronoi",
+  mask_landscape = FALSE,
+  additional_info = FALSE,
   sample_size = 3L,
   max_tries = 3L,
   verbose = 1L
 )
 }
 \arguments{
-\item{verbose}{}
+\item{map}{a landscape to use for masking}
+
+\item{points}{the points to randomise}
+
+\item{randomise_size}{the pool size for randomisation}
+
+\item{from_type}{the basis on which to determine distance between "from" and "to" points: one of voronoi, point or centroid}
+
+\item{to_type}{the basis on which to determine distance between "from" and "to" points: one of voronoi, point or centroid}
+
+\item{mask_landscape}{should the Voronoi cells be masked using the map before distances are calculated? Has no effect for from_type=to_type="point"}
+
+\item{sample_size}{the number of random points to generate within each Voronoi cell}
+
+\item{max_tries}{the maximum number of tries before failure}
+
+\item{verbose}{a positive integer determining how much progress output should be displayed (0=silent)}
+
+\item{ektra_info}{option to provide additional columns in the dataframe returned}
 }
 \description{
-Title
+Randomise locations of points based on Voronoi tesselation
 }
 \examples{
 xrange <- c(0, 10)
@@ -32,10 +54,12 @@ corners <- tribble(~x, ~y,
 library("sf")
 map <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
 points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf()
-random <- randomise_voronoi(map, points) |> mutate(Index = 1:n())
+random <- randomise_voronoi(map, points, additional_info=TRUE) |> mutate(Index = 1:n())
 ggplot(random) +
+  geom_sf(aes(geometry=VoronoiCell)) +
   geom_sf(aes(geometry=RandomShift)) +
-  geom_sf(aes(geometry=RandomPoint))
+  geom_sf(aes(geometry=RandomPoint)) +
+  theme_void()
 
 
 }
