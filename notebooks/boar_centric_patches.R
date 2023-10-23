@@ -38,7 +38,7 @@ ggplot() +
 
 
 #' Then do a kernal density estimation:
-type <- "squares"
+type <- "hexagons"
 coords <- st_coordinates(pts)
 bb <- st_bbox(pts)
 
