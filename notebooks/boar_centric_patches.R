@@ -73,6 +73,7 @@ if(type=="squares"){
 
 bw <- c(MASS::bandwidth.nrd(coords[,1]), MASS::bandwidth.nrd(coords[,2]))
 #' TODO: the value chosen for h affects the extent of smoothing (currently half the default value)
+#' TODO: for hexagons scale y h so that it is equivalent to x h i.e. accounts for aspect ratio
 dens <- MASS::kde2d(coords[,1], coords[,2], h=mean(bw)*0.5, n=ns, lims=bb[c(1,3,2,4)])
 stopifnot(all(dim(dens$z)==ns))
 
@@ -97,7 +98,7 @@ tibble(y = dens[["y"]]) |> mutate(row = rep(c("odd","even"), ceiling(length(dens
 
 if(!is_square){
   patches |>
-    filter(st_intersects(centroid, st_as_sfc(bb+c(-dy*0.1,-dy*1.1,dx*1.1,dy*0.1)), sparse=FALSE)) ->
+    filter(st_intersects(centroid, st_as_sfc(bb+c(-dy*0.1,-dy*1.1,dx*1.1,dy*0.1)), sparse=FALSE)[,1L]) ->
     patches
 
   density |>
@@ -136,6 +137,7 @@ habitat |>
   pull(Area) ->
   target_area
 units(target_area) <- "km^2"
+#' TODO: distinguish between high and low density habitat
 
 density |>
   as_tibble() |>
