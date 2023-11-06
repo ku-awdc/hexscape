@@ -29,27 +29,68 @@ offset_x <- (ls_width %% hex_width) / 2 + (hex_width/2)
 ## Calculating y offset is a bit trickier:
 offset_y <- (ls_height/2+hex_height+hex_side) %% ((hex_height + hex_side) / 2)
 
+patches <- st_make_grid(st_as_sfc(bb), cellsize=hex_width, offset=c(offset_x, offset_y), square=FALSE)
+ggplot(patches |> st_intersection(landscape) |> st_as_sf()) + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
 
-#if(offset_y > ((hex_height + hex_side) / 4)){
-#  offset_y <- offset_y - ((hex_height + hex_side) / 2)
-#}
-
-patches <- st_make_grid(st_as_sfc(bb), cellsize=hex_width, offset=c(offset_x, offset_y), square=FALSE) |> st_intersection(landscape) |> st_as_sf()
-
-ggplot(patches) + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
-
-
-## Point can be in 1 of 4 places:
+## But point can be in 1 of 4 places:
 # - Center hexagon (correct)
 # - Center side (correct I guess)
 # - In line with bottom/top hips (incorrect - off by (hex_side/2))
 # - At 3-way joint (incorrect - off by (hex_side/2))
+## And correcting by hex_side/2 doesn't always fix the problem!
 
-## But correcting by hex_side/2 doesn't always fix the problem e.g. with hex_side <- 7.5:
 
-patches <- st_make_grid(st_as_sfc(bb), cellsize=hex_width, offset=c(offset_x, offset_y+(hex_side/2)), square=FALSE) |> st_intersection(landscape) |> st_as_sf()
+## But we can fix it manually:
+ggplot(patches |> st_intersection(landscape) |> st_as_sf()) + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
 
-ggplot(patches) + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
+patches |>
+  st_centroid() |>
+  st_coordinates() |>
+  as_tibble() |>
+  mutate(Xdelta = center["x"] - X, Ydelta = center["y"] - Y) |>
+  arrange(abs(Xdelta), abs(Ydelta)) |>
+  slice(1) |>
+  select(Xdelta, Ydelta) |>
+  as.numeric() ->
+  offsets
+
+## And then choose either the center of a hexagon:
+(patches + offsets) |>
+  st_intersection(landscape) |>
+  ggplot() + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
+
+## Or the center of a side:
+(patches + offsets + c(hex_width/2, 0)) |>
+  st_intersection(landscape) |>
+  ggplot() + geom_sf() + geom_point(aes(x=x,y=y), tibble(x=center["x"], y=center["y"]))
+
+
+## Then we can add something akin to row and column numbers:
+side_y <- st_linestring(matrix(bb[c("xmin","xmin","ymin","ymax")], ncol=2))
+side_x <- st_linestring(matrix(bb[c("xmin","xmax","ymin","ymin")], ncol=2))
+# Note: this bb is deliberately with the inflated bb!
+
+(patches + offsets) |>
+  st_as_sf() |>
+  rename(geometry=x) |>
+  mutate(Centroid = st_centroid(geometry)) |>
+  filter(st_intersects(geometry, landscape, sparse=FALSE)[,1]) |>
+  mutate(geometry = st_intersection(geometry, landscape)) |>
+  mutate(Col = st_distance(Centroid, side_x) |> factor() |> as.numeric()) |>
+  mutate(Row = st_distance(Centroid, side_y) |> factor() |> as.numeric()) ->
+  final_patches
+
+ggplot(final_patches, aes(label=Col)) + geom_sf() + geom_sf_label()
+ggplot(final_patches, aes(label=Row)) + geom_sf() + geom_sf_label()
+
+# Then you can just change the row/column order as you prefer:
+final_patches |>
+  arrange(Row, Col) |>
+  mutate(PatchID = row_number()) |>
+  select(PatchID, everything()) ->
+  final_patches
+
+final_patches
 
 
 
