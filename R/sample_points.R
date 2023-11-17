@@ -33,9 +33,13 @@ sample_points <- function(map, size=1L, sample_scale=100L, verbose=1L){
     new_pts
 
     tibble(point = new_pts) |>
-      mutate(match = st_intersects(point, map, sparse=TRUE) |> as.numeric()) |>
+      mutate(
+        match = st_intersects(point, map, sparse=TRUE) |>
+          sapply(function(x) if(length(x)==0L) NA_integer_ else if(length(x)>1L) x[sample.int(length(x), 1L)] else x)
+      ) |>
       filter(!is.na(match), match %in% which(totals < size)) ->
     keep_pts
+    stopifnot(is.numeric(keep_pts[["match"]]))
 
     newtot <- keep_pts |> count(match)
     totals[newtot[["match"]]] <- totals[newtot[["match"]]] + newtot[["n"]]
