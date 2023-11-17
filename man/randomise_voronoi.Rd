@@ -57,6 +57,7 @@ points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf(
 random <- randomise_voronoi(map, points, additional_info=TRUE) |> mutate(Index = 1:n())
 ggplot(random) +
   geom_sf(aes(geometry=VoronoiCell)) +
+  geom_sf(aes(geometry=VoronoiMasked), alpha=0.5) +
   geom_sf(aes(geometry=RandomShift)) +
   geom_sf(aes(geometry=RandomPoint)) +
   theme_void()

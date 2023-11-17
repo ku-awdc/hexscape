@@ -25,7 +25,6 @@ Depends:
     tidyverse,
     R (>= 4.1.0)
 Imports:
-    Rcpp,
     sf,
     rmapshaper,
     igraph,
@@ -38,10 +37,7 @@ Suggests:
     knitr,
     markdown,
     spelling
-LinkingTo: 
-    Rcpp
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Language: en-GB
 LazyData: true
-SystemRequirements: C++17
