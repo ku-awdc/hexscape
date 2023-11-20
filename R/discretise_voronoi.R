@@ -32,6 +32,7 @@ discretise_voronoi <- function(map, points){
 
   ## Then re-order the Voronoi cells, merge into data frame, and intersect etc:
   points |>
+    ungroup() |>
     mutate(geometry = voronois[vt_index]) |>
     mutate(geometry = st_intersection(geometry, mapsf) |> st_make_valid()) |>
     mutate(centroid = st_centroid(geometry, of_largest_polygon=FALSE)) |>
