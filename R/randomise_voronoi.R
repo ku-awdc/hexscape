@@ -147,11 +147,11 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
     table() ->
     chosen_by_other
   stopifnot(names(chosen_by_other)==seq_len(nrow(points)))
-  if(any(chosen_by_other < 2L)){
+  if(any(chosen_by_other == 0L)){
     if(additional_info){
-      warning("One or more point had fewer than 2 external candidate cells (Island problem)")
+      warning("One or more point had zero external candidate cells (Island problem)")
     }else{
-      warning("One or more point had fewer than 2 external candidate cells (Island problem) - you can re-run with additional_info=TRUE to see which")
+      warning("One or more point had zero external candidate cells (Island problem) - you can re-run with additional_info=TRUE to see which")
     }
   }
 
