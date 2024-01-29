@@ -51,6 +51,7 @@ if(type=="squares"){
   bb[c(3,4)] <- ceiling(bb[c(3,4)]/c(dx,dy))*c(dx,dy)
   ns <- c((bb["xmax"]-bb["xmin"])/dx +1,(bb["ymax"]-bb["ymin"])/dy +1)
   cellsize <- c(dx,dy)
+  cell_area <- dx*dy
   offset <- c(bb["xmin"]-(dx/2), bb["ymin"]-(dy/2))
   stopifnot(dx==dy)
   is_square <- TRUE
@@ -64,6 +65,7 @@ if(type=="squares"){
   bb[c(3,4)] <- ceiling(bb[c(3,4)]/c(dx,dy))*c(dx,dy)
   ns <- round(c((bb["xmax"]-bb["xmin"])/dx +1,(bb["ymax"]-bb["ymin"])/dy +1))
   cellsize <- dx
+  cell_area <- 3/2 * sqrt(3) * (cellsize/sqrt(3))^2
   offset <- c(bb["xmin"], bb["ymin"])
   is_square <- FALSE
 
@@ -164,7 +166,15 @@ ggplot() + geom_sf(data=load_map("DK032")) + geom_sf(data=patches, fill="blue")
 ggplot(habitat, aes(fill=Habitat)) + geom_sf() + theme(legend.pos="none")
 
 #' TODO: Detect blocks less than a specified size and remove / replace with other squares/hexagons that are neighbours of existing areas?
-
+# patches |>
+#   mutate(Area = st_area(geometry)) |>
+#   mutate(Included = Area >= 5*cell_area)
+#
+# st_multipolygon(patches$geometry) |>
+#   lapply(function(x) x) |>
+#   st_sfc(crs=st_crs(patches)) |>
+#   as_tibble() |>
+#   mutate(ClusterID = 1:n(), Size = st_area(geometry))
 
 
 ## Then put points back into the included areas and do k-means clustering to break apart larger patches:
@@ -214,3 +224,4 @@ ggplot() + geom_sf(data=load_map("DK032")) + geom_sf(data=new_patches, fill="lig
 
 new_patches
 
+saveRDS(new_patches, "patches.rds")
