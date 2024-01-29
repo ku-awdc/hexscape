@@ -5,11 +5,11 @@
 \title{Randomise locations of points based on Voronoi tesselation}
 \usage{
 randomise_voronoi(
-  map,
   points,
+  map,
   randomise_size = 5L,
   from_type = "point",
-  to_type = "voronoi",
+  to_type = "centroid",
   mask_landscape = FALSE,
   additional_info = FALSE,
   sample_size = 3L,
@@ -18,9 +18,9 @@ randomise_voronoi(
 )
 }
 \arguments{
-\item{map}{a landscape to use for masking}
-
 \item{points}{the points to randomise}
+
+\item{map}{a landscape to use for masking}
 
 \item{randomise_size}{the pool size for randomisation}
 
@@ -30,13 +30,16 @@ randomise_voronoi(
 
 \item{mask_landscape}{should the Voronoi cells be masked using the map before distances are calculated? Has no effect for from_type=to_type="point"}
 
+\item{additional_info}{option to provide additional columns in the dataframe returned}
+
 \item{sample_size}{the number of random points to generate within each Voronoi cell}
 
 \item{max_tries}{the maximum number of tries before failure}
 
 \item{verbose}{a positive integer determining how much progress output should be displayed (0=silent)}
-
-\item{ektra_info}{option to provide additional columns in the dataframe returned}
+}
+\value{
+The return value depends on the input points:  if the input is an sfc object and additional_info==FALSE, then the output is also an sfc object; if the input is an sf data frame, then the output is also an sf data frame with the random points in the active geometry (which will have the same name as the input); the output is always an sf data frame if additional_info==TRUE, with the randomised points as the active geometry (this will be named geometry if the input is an sfc object, or have the same name as the active geometry in the input if this was an sf data frame)
 }
 \description{
 Randomise locations of points based on Voronoi tesselation
@@ -52,9 +55,9 @@ corners <- tribble(~x, ~y,
                    xrange[1], yrange[1]
 )
 library("sf")
-map <- st_sfc(st_multipolygon(list(list(as.matrix(corners))))) |> st_as_sf()
-points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10)))) |> st_as_sf()
-random <- randomise_voronoi(map, points, additional_info=TRUE) |> mutate(Index = 1:n())
+map <- st_sfc(st_multipolygon(list(list(as.matrix(corners)))))
+points <- st_sfc(lapply(1:10, function(x) st_point(runif(2,0,10))))
+random <- randomise_voronoi(points, map, additional_info=TRUE)
 ggplot(random) +
   geom_sf(aes(geometry=VoronoiCell)) +
   geom_sf(aes(geometry=VoronoiMasked), alpha=0.5) +
