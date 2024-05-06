@@ -3,6 +3,8 @@ library("sf")
 library("units")
 library("pbapply")
 
+#' TODO:  look at ?st_interpolate_aw to simplify first stage (Corine -> Hexagons) - density version
+
 #' Take corine data and simplify to non-habitable / low-habitable / high-habitable:
 load_corine("DK032") |>
   mutate(Habitat = case_when(
@@ -76,8 +78,9 @@ if(type=="squares"){
 bw <- c(MASS::bandwidth.nrd(coords[,1]), MASS::bandwidth.nrd(coords[,2]))
 #' TODO: the value chosen for h affects the extent of smoothing (currently half the default value)
 #' TODO: for hexagons scale y h so that it is equivalent to x h i.e. accounts for aspect ratio
-dens <- MASS::kde2d(coords[,1], coords[,2], h=mean(bw)*0.5, n=ns, lims=bb[c(1,3,2,4)])
+dens <- MASS::kde2d(coords[,1], coords[,2], h=min(bw)*0.5, n=ns, lims=bb[c(1,3,2,4)])
 stopifnot(all(dim(dens$z)==ns))
+# image(dens)
 
 dens_z <- dens[["z"]]
 if(!is_square){
@@ -92,11 +95,19 @@ tibble(geometry = st_make_grid(st_as_sfc(bb), cellsize=cellsize, offset=offset, 
   st_as_sf() |>
   mutate(centroid = st_centroid(geometry)) ->
   patches
+# ggplot(patches) + geom_sf()
+
 
 tibble(y = dens[["y"]]) |> mutate(row = rep(c("odd","even"), ceiling(length(dens$y)/2))[1:n()]) |>
   expand_grid(x = dens[["x"]]) |>
   mutate(z = dens_z |> as.numeric()) ->
   density
+
+
+## Alternative (doesn't work):
+# int <- st_interpolate_aw(density |> st_as_sf(coords=c("x","y"), crs=st_crs(patches)) |> select(z), patches, extensive=FALSE)
+
+
 
 if(!is_square){
   patches |>
@@ -111,6 +122,7 @@ if(!is_square){
     identity() ->
     density
 }
+
 
 stopifnot(nrow(patches)==nrow(density))
 index <- st_intersects(patches[["geometry"]], density |> st_as_sf(coords=c("x","y"), crs=st_crs(pts))) |> as.numeric()
@@ -161,6 +173,9 @@ density |>
   st_as_sf() |>
   mutate(PatchID = 1:n(), Area = st_area(geometry)) ->
   patches
+
+patches |> as_tibble() |> summarise(Area=sum(Area)/1e6)
+habitat |> as_tibble() |> summarise(Area=sum(Area * if_else(Habitat=="Non", 0, 1)))
 
 ggplot() + geom_sf(data=load_map("DK032")) + geom_sf(data=patches, fill="blue")
 ggplot(habitat, aes(fill=Habitat)) + geom_sf() + theme(legend.pos="none")
@@ -224,4 +239,4 @@ ggplot() + geom_sf(data=load_map("DK032")) + geom_sf(data=new_patches, fill="lig
 
 new_patches
 
-saveRDS(new_patches, "patches.rds")
+# saveRDS(new_patches, "patches.rds")
