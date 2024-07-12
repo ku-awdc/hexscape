@@ -20,3 +20,19 @@ library("hexscape")
 ```
 
 ## TODO
+
+
+Software side:
+- Corine land use data (Europe)
+- NUTS codes/shapefiles
+- DK sogne/kommune/postcodes
+- Landscape discretisation
+- Reshuffling/anonymisation of spatial locations based on current code only, i.e. re-sampling within 5 nearest neighbours, but with a check to make sure that any locations that are not also nearest neighbours for a minimum of 3 others get auto-removed/warned/swapped
+
+
+## Future work
+
+https://www.overleaf.com/project/668d42df6627106c20bc9935
+
+
+
