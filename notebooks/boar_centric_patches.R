@@ -1,7 +1,13 @@
+
 library("hexscape")
 library("sf")
 library("units")
 library("pbapply")
+
+
+aggregate_corine <- function(corine, map, min_size, max_size, points, bw){
+
+}
 
 #' TODO:  look at ?st_interpolate_aw to simplify first stage (Corine -> Hexagons) - density version
 
