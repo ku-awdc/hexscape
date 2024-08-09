@@ -29,7 +29,7 @@ ggplot(habitat, aes(fill=Habitat)) + geom_sf() + coord_sf(xlim=c(9,9.5), ylim=c(
 c(1, 2, 5, 10, 25) |>
   set_names(function(x) str_c("Size_", x, "km2")) |>
   pblapply(function(x){
-    discretise_habitat(habitat, max_size=x, min_size=0.5, patch_density=0.75, raster_size=0.05, verbose=0L)
+    discretise_habitat(habitat, max_size=x, min_size=0.5, raster_size=0.05, verbose=0L)
   }, cl=6L) ->
   all_patches
 

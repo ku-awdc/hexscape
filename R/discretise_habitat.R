@@ -20,7 +20,7 @@
 #' @examples
 discretise_habitat <- function(habitat, max_size=as_units(5, "km^2"),
                                min_size=as_units(0.5, "km^2"),
-                               patch_density = as_units(1, "1/km^2"),
+                               patch_density = as_units(max(habitat$Density), "1/km^2"),
                                raster_size = as_units(0.05, "km^2"),
                                raster_shape = c("hexagons","squares"),
                                h_adj=0.5, point_density=as_units(100, "1/km^2"),
