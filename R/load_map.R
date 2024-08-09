@@ -23,12 +23,12 @@ load_map <- function(nuts_code, verbose=1L){
   }
 
   ## nuts_code can be a country or NUTS0/1/2/3 code:
-  invalid <- which(!nuts_code %in% nuts_codes[["NUTS"]])
+  invalid <- which(!nuts_code %in% hexscape::nuts_codes[["NUTS"]])
   if(length(invalid)>0L){
     stop("The following NUTS codes supplied are invalid: ", str_c(nuts_code[invalid], collapse=", "))
   }
 
-  nuts_codes |>
+  hexscape::nuts_codes |>
     filter(NUTS %in% nuts_code) ->
   nuts_using
 
@@ -97,7 +97,7 @@ load_map <- function(nuts_code, verbose=1L){
       select(CNTR_CODE, NUTS_ID, NUTS_NAME, geometry)
 
     ## Then re-create all higher NUTS divisions by union:
-    nuts_codes |>
+    hexscape::nuts_codes |>
       filter(Code==country_code) ->
     all_nuts
 
