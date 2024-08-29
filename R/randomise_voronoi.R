@@ -64,13 +64,13 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
     stopifnot(!is.null(pointscolname), !is.na(pointscolname))
   }else if(inherits(points, "sfc")){
     points_is_df <- FALSE
-    points <- tibble(geometry = pointscol) |> st_as_sf(crs=st_crs(points))
+    points <- tibble(geometry = points) |> st_as_sf(crs=st_crs(points))
     pointscolname <- "geometry"
   }else{
     stop("The provided points should either be an sfc object or an sf object with an active geometry")
   }
   stopifnot(
-    "The provided points are not sfc points"=inherits(pointscol, c("sfc_POINT")),
+    "The provided points are not sfc points"=inherits(points[[pointscolname]], c("sfc_POINT")),
     "The provided points are of length 1"=nrow(points)>1L,
     "The CRS of the map and points don't match"=st_crs(map)==st_crs(points)
   )
@@ -126,15 +126,27 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
   }
 
 
-  ## Then use pairwise distance matrices to get the closest S centroids to
-  ## each point:
+  ## Then use pairwise distance matrices to rank distances between
+  ## each point pair (ensuring distances to self are zero):
   st_distance(dist_from, dist_to) |>
-    set_units("m") |>
-    ## Cheat by making the distance to self negative:
-    {function(x) x - (diag(nrow(points)) |> set_units("m"))}() |>
-    apply(2, function(x) which(rank(x, ties.method="random") <= randomise_size), simplify=FALSE) ->
+    {function(x) x * (1.0-diag(nrow(points)))}() |>
+    apply(2, function(x) rank(x, ties.method="random"), simplify=TRUE) ->
+    rank_mat
+
+  ## Ensure symmetry by combining closest to with closest from:
+  .mapply(
+    c,
+    list(
+      rank_mat |>
+        apply(1, function(x) which(x <= randomise_size), simplify=FALSE),
+      rank_mat |>
+        apply(2, function(x) which(x <= randomise_size), simplify=FALSE)
+    ),
+    list()
+  ) |>
+    lapply(unique) ->
     closest
-  stopifnot(nrow(points)==length(closest))
+
 
   ## Calculate the number of times a voronoi cell is chosen by a different cell:
   seq_len(nrow(points)) |>
@@ -146,19 +158,14 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
     factor(levels=seq_len(nrow(points))) |>
     table() ->
     chosen_by_other
-  stopifnot(names(chosen_by_other)==seq_len(nrow(points)))
-  if(any(chosen_by_other == 0L)){
-    if(additional_info){
-      warning("One or more point had zero external candidate cells (Island problem)")
-    }else{
-      warning("One or more point had zero external candidate cells (Island problem) - you can re-run with additional_info=TRUE to see which")
-    }
-  }
+  stopifnot(names(chosen_by_other)==seq_len(nrow(points)), min(chosen_by_other) >= (randomise_size-1L))
+
 
   ## And calculate the selection probability based on frequency of appearance
   ## (all should appear at least once):
+  warning("Selection probability should be even??")
   freq <- closest |> unlist() |> factor(levels=seq_len(nrow(points))) |> table() |> as.numeric()
-  stopifnot(length(freq) == nrow(points), all(freq>=1L), sum(freq)==(nrow(points)*randomise_size))
+  stopifnot(length(freq) == nrow(points), all(freq>=1L))#, sum(freq)==(nrow(points)*randomise_size))
 
   ## Then do an st_intersection of the voronoi cells with the provided map (if not already done):
   if(!mask_landscape){
