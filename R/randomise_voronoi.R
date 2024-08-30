@@ -35,9 +35,16 @@
 #'
 #'
 #' @export
-randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point", to_type = "centroid", mask_landscape = FALSE, additional_info = FALSE, sample_size=3L, max_tries=3L, verbose=1L){
+randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point", to_type = "centroid", mask_landscape = FALSE, additional_info = FALSE, sample_probs=10^-seq_len(3L), max_tries=3L, verbose=1L){
 
   ## TODO: add buffer to stop two points being close to each other (as an argument to sample_points)
+  ## TODO: add symmetric option to only look at closest neighbours to
+  ## TODO: rationalise return type
+  ## TODO: functionality for controlling selection probability
+  sample_size <- length(sample_probs)
+
+  ## Check that all points are within the map:
+  stopifnot(st_intersects(points, map, sparse=FALSE))
 
   ## TODO: document arguments - points can be a vector or a d.f. - if the latter then the active geo is taken and over-written;  map can be a vector or d.f. - if the latter then the active geo is used;  additional_info creates a data frame if input wasn't one but check column names don't clash
   ## TODO: look for voronoi cells that do not appear in the list of candidates more than once - give a warning or include as output #cells candidate and #cells chosen
@@ -127,9 +134,14 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
 
 
   ## Then use pairwise distance matrices to rank distances between
-  ## each point pair (ensuring distances to self are zero):
+  ## each point pair (ensuring distances to self are always smallest i.e. -1):
   st_distance(dist_from, dist_to) |>
-    {function(x) x * (1.0-diag(nrow(points)))}() |>
+    {function(x){
+      y <- as.numeric(x)
+      dim(y) <- dim(x)
+      dd <- diag(nrow(points))
+      y * (1.0-dd) - dd
+    }}() |>
     apply(2, function(x) rank(x, ties.method="random"), simplify=TRUE) ->
     rank_mat
 
@@ -147,25 +159,23 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
     lapply(unique) ->
     closest
 
-
-  ## Calculate the number of times a voronoi cell is chosen by a different cell:
+  ## Calculate the number of times a voronoi cell is chosen:
   seq_len(nrow(points)) |>
     lapply(function(i){
       c <- closest[[i]]
-      c[c!=i]
+      #c[c!=i]
     }) |>
     do.call("c", args=_) |>
     factor(levels=seq_len(nrow(points))) |>
     table() ->
     chosen_by_other
-  stopifnot(names(chosen_by_other)==seq_len(nrow(points)), min(chosen_by_other) >= (randomise_size-1L))
+  stopifnot(names(chosen_by_other)==seq_len(nrow(points)), chosen_by_other >= randomise_size)
 
 
-  ## And calculate the selection probability based on frequency of appearance
-  ## (all should appear at least once):
-  warning("Selection probability should be even??")
+  ## Calculate the selection probability based on frequency of appearance:
   freq <- closest |> unlist() |> factor(levels=seq_len(nrow(points))) |> table() |> as.numeric()
-  stopifnot(length(freq) == nrow(points), all(freq>=1L))#, sum(freq)==(nrow(points)*randomise_size))
+  stopifnot(length(freq) == nrow(points), freq >= randomise_size)
+
 
   ## Then do an st_intersection of the voronoi cells with the provided map (if not already done):
   if(!mask_landscape){
@@ -174,15 +184,15 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
       voronoi
   }
 
-  ## Delegate to get sampled points:
+  ## Delegate to get sampled points and assign probabilities reflecting the index:
   if(verbose>0L) cat("Getting random points...\n")
   sample_points(voronoi, size=sample_size, verbose=verbose) |>
-    mutate(SampleIndex = 1:n()) |>
-    full_join(
-      tibble(Index = seq_len(nrow(points)), SampleProb = 1/freq),
-      by="Index"
-    ) ->
+    mutate(SampleIndex = seq_len(n())) |>
+    group_by(Index) |>
+    mutate(SampleProb = sample_probs) |>
+    ungroup() ->
     samples
+
 
   ## And then sample a point from one of the corresponding Voronoi cells:
   if(verbose>0L) cat("Running reassortment...\n")
@@ -215,6 +225,12 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
   #allchosen |> bind_rows() |> count(Index)
   if(any(used==0L)) stop("Algorithm failed more than the specified maximum number of tries - you could try re-running the function")
 
+  index_used <- samples$Index[used]
+  seq_len(nrow(points)) |>
+    vapply(function(i) sum(index_used==i), numeric(1)) ->
+      from_times_chosen
+  stopifnot(sum(from_times_chosen) == nrow(points))
+
   if(additional_info){
     points[["RandomShift"]] = st_sfc(mapply(function(a,b){st_cast(st_union(a,b),"LINESTRING")}, original_points, points[[pointscolname]], SIMPLIFY=FALSE), crs = st_crs(points))
     stopifnot(nrow(points)==nrow(voronoi))
@@ -222,7 +238,9 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
     points[["ToType"]] <- st_geometry(dist_to)
     points[["VoronoiMasked"]] <- voronoi[["geometry"]]
     points[["VoronoiUnmasked"]] <- voronoi_unmasked[["geometry"]]
-    points[["ExternalCandidates"]] <- as.integer(chosen_by_other)
+    points[["ToCandidates"]] <- as.integer(freq)
+    points[["FromCandidates"]] <- as.integer(chosen_by_other)  # identical to ToCandidates if symmetric
+    points[["FromTimesChosen"]] <- as.integer(from_times_chosen)
   }
 
   st_geometry(points) <- pointscolname
