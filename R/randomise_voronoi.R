@@ -44,7 +44,7 @@ randomise_voronoi <- function(points, map, randomise_size=5L, from_type = "point
   sample_size <- length(sample_probs)
 
   ## Check that all points are within the map:
-  stopifnot(st_intersects(points, map, sparse=FALSE))
+  stopifnot(st_intersects(points, map |> summarise(), sparse=FALSE))
 
   ## TODO: document arguments - points can be a vector or a d.f. - if the latter then the active geo is taken and over-written;  map can be a vector or d.f. - if the latter then the active geo is used;  additional_info creates a data frame if input wasn't one but check column names don't clash
   ## TODO: look for voronoi cells that do not appear in the list of candidates more than once - give a warning or include as output #cells candidate and #cells chosen
