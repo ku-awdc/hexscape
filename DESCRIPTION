@@ -25,10 +25,12 @@ Depends:
     tidyverse,
     R (>= 4.2.0)
 Imports:
+    giscoR,
     sf,
     rmapshaper,
     igraph,
     pbapply,
+    ggplot2,
     eurostat,
     units,
     qs (>= 0.25)
