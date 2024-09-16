@@ -1,0 +1,6 @@
+File name format:
+
+DK0N16.rqs
+
+The N16 refers to the NUTS1 definition (16, 21 and 24 are unchanged; 13 is different for some)
+In future:  default will be latest NUTS at time of Corine production, i.e. N24 for 2024 corine, and earlier/later may be added

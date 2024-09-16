@@ -42,7 +42,7 @@ uk <- bind_rows(
   load_map(hexscape::nuts_codes |> filter(Country=="Ireland", Level==1) |> pull(NUTS)) |> as_tibble()
 )
 ggplot(uk, aes(fill=NUTS, geometry=geometry)) + geom_sf() + theme_void() + theme(legend.title = element_blank(), legend.position="bottom")
-ggplot(uk, aes(fill=NUTS, geometry=geometry)) + geom_sf() + theme_void() + theme(legend.title = element_blank(), legend.position="right") + labs(caption="© EuroGeographics for the administrative boundaries")
+ggplot(uk, aes(fill=NUTS, geometry=geometry)) + geom_sf(col="transparent") + theme_void() + theme(legend.title = element_blank(), legend.position="right") + labs(caption="© EuroGeographics for the administrative boundaries")
 ggsave("paper/figure_1.pdf", width=5, height=5)
 
 ## Should be:
@@ -53,7 +53,7 @@ autoplot(map_data)
 hexscape::nuts_codes |> filter(Country=="Denmark", Level==3)
 
 dk <- load_map(hexscape::nuts_codes |> filter(Country=="Denmark", Level==3) |> pull(NUTS))
-ggplot(dk, aes(fill=NUTS)) + geom_sf() + geom_sf() + theme_void() + theme(legend.title = element_blank(), legend.position="bottom") + labs(caption="© EuroGeographics for the administrative boundaries")
+ggplot(dk, aes(fill=NUTS)) + geom_sf(col="transparent") + geom_sf(col="transparent") + theme_void() + theme(legend.title = element_blank(), legend.position="bottom") + labs(caption="© EuroGeographics for the administrative boundaries")
 ggsave("paper/figure_2.pdf", width=5, height=5)
 
 
@@ -61,6 +61,12 @@ ggsave("paper/figure_2.pdf", width=5, height=5)
 map_data <- load_map("DK", nuts_level=3)
 autoplot(map_data, legend="bottom")
 
+## TODO:  non-simplified next to simplified, also use cols
+load_corine(c("DK014")) |>
+  ggplot(aes(fill=CLC_Label3)) +
+  geom_sf() +
+  theme_void() + theme(legend.title = element_blank(), legend.position="none") + labs(caption="Copernicus Land Monitoring Service products and services\nwere produced with funding by the European Union") +
+  scale_fill_manual()
 
 sj <- load_map("DK032")
 ggplot(sj) + geom_sf()
@@ -82,6 +88,24 @@ load_corine(c("DK032")) |>
 
 
 ggplot() + geom_sf(aes(col=Habitat, fill=Habitat), sjc |> filter(Habitat!="Non") |> mutate(Habitat = factor(Habitat, rev(c("Low","High"))))) + geom_sf(aes(), sj, fill="transparent")
+
+
+load_corine(c("LU")) |>
+  mutate(Habitat = case_when(
+    CLC_Label3=="Coniferous forest"~"Low",
+    CLC_Label2=="Forests" ~ "High",
+    CLC_Label2=="Scrub and/or herbaceous vegetation associations" ~ "MediumS",
+    CLC_Label1=="Agricultural areas" ~ "MediumA",
+    .default = "Non"
+  )) |>
+  group_by(NUTS, Habitat) |>
+  summarise(Area=sum(Area), Area_simplified=sum(Area_simplified), geometry=st_union(geometry), .groups="drop") ->
+  luc
+ggplot(luc) + geom_sf(aes(fill=Habitat))
+
+
+lu <- load_map(hexscape::nuts_codes |> filter(Country=="Luxembourg", Level==3) |> pull(NUTS))
+ggplot(lu, aes(fill=NUTS)) + geom_sf(col="transparent") + geom_sf(col="transparent") + theme_void() + theme(legend.title = element_blank(), legend.position="bottom") + labs(caption="© EuroGeographics for the administrative boundaries")
 
 
 

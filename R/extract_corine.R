@@ -128,6 +128,7 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
       propmiss <- as.numeric( st_area(missingcc) / st_area(mapsf) )
       msg <- str_c("Corine coverage for supplied area is incomplete (", round(1-propmiss,3)*100, "%)")
       if(propmiss > 0.001){
+        ## TODO: add missing explicitly to data frame produced
         if(verbose > 0L) cat("WARNING:", msg, "\n")
         warning(msg)
       }
@@ -143,6 +144,9 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
     }else{
       corine_raw <- cr
     }
+
+    ## Then save using qs:
+    # qs::qsave(cra, "DK0N16.rqs", preset="archive")
 
     ## Aggregate within supplied rows (if data frame) and aggregate:
     if(verbose > 0L){
