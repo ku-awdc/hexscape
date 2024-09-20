@@ -188,6 +188,7 @@ discretise_habitat <- function(habitat, max_size=as_units(5, "km^2"),
     identity() ->
     density
 
+  out_density <<- density
 
   #plot(st_coordinates(density[["centroid"]])[,1], density[["x"]]); abline(0,1)
   #plot(st_coordinates(density[["centroid"]])[,2], density[["y"]]); abline(0,1)

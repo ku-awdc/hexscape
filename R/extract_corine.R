@@ -146,7 +146,8 @@ extract_corine <- function(map, use_cache=validate_corine_cache(), simplify_keep
     }
 
     ## Then save using qs:
-    # qs::qsave(cra, "DK0N16.rqs", preset="archive")
+    # qs::qsave(corine_raw, "DK0N16_full.rqs", preset="archive")
+    # qs::qsave(corine_aggr, "LU0N16.rqs", preset="archive")
 
     ## Aggregate within supplied rows (if data frame) and aggregate:
     if(verbose > 0L){
