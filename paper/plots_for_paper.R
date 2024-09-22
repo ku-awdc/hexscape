@@ -135,6 +135,63 @@ full_join(
   mutate(Change = ((Simplified/Raw * 100)-100) |> round(1)) |>
   knitr::kable(format="latex")
 
+# Comparing to raster:
+if(FALSE){
+  library("stars")
+  raster_tiff <- read_stars("~/Documents/Resources/Datasets/Corine/u2018_clc2018_v2020_20u1_raster100m/DATA/U2018_CLC2018_V2020_20u1.tif")
+  bh_bbox <- st_bbox(st_transform(nuts_bh, st_crs(raster_tiff)))
+  bh_tiff <- raster_tiff[bh_bbox]
+  st_as_sf(bh_tiff, as_points = FALSE, merge = TRUE) |>
+    mutate(Colour = as.character(`U2018_CLC2018_V2020_20u1.tif`)) ->
+    raster_polygon
+  ggplot(raster_polygon, aes(fill=Colour)) + geom_sf()
+
+  raster_polygon |>
+    group_by(Colour) |>
+    summarise() |>
+    mutate(AreaR = st_area(geometry)) ->
+    bhr
+
+  expand_grid(
+    bhr |> as_tibble() |> select(Colour, AreaR) |> filter(Colour!="44"),
+    bornholm |> mutate(AreaF = st_area(geometry)) |> as_tibble() |> select(CLC, AreaF)
+  ) |>
+    group_by(Colour) |>
+    arrange(abs(AreaR-AreaF)) |>
+    slice(1L) |>
+    ungroup() |>
+    arrange(CLC)
+
+  readxl::read_excel("~/Documents/Resources/Datasets/Corine/clc2000legend.xls") |>
+    select(Colour=GRID_CODE, CLC=CLC_CODE) ->
+    clc_lookup
+
+  bhr |>
+    left_join(
+      clc_lookup |> mutate(across(everything(), as.character)),
+      by="Colour"
+    ) ->
+    bhr
+
+  bhr |>
+    as_tibble() |>
+    select(Colour, AreaR, CLC) |>
+    full_join(
+      bornholm |> mutate(AreaF = st_area(geometry)) |> as_tibble() |> select(CLC, AreaF),
+      by="CLC"
+    ) |>
+    filter(Colour!="44") |>
+    group_by(str_sub(CLC, 1L, 1L)) |>
+    summarise(CLC = CLC[1], AreaR=sum(AreaR) |> as.numeric(), AreaF=sum(AreaF) |> as.numeric()) |>
+    mutate(Change = ((AreaR/AreaF * 100)-100) |> round(1), AreaR = AreaR/1e6)
+
+  bhr |>
+    group_by(str_sub(CLC, 1L, 1L)) |>
+    summarise() |>
+    pull(geometry) |>
+    object.size() |>
+    {\(x) x / 1e3}()
+}
 
 ## FIGURE 4
 map_lu <- load_map("LU0")
