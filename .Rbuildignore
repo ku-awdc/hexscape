@@ -7,3 +7,7 @@
 ^reports$
 ^data-raw$
 ^paper$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^\.github$
