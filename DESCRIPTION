@@ -43,4 +43,3 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 Language: en-GB
 LazyData: true
-URL: http://www.costmodds.org/hexscape/
