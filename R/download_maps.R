@@ -12,8 +12,9 @@
 #' @export
 download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
 
-  ## Fixed for now:
-  stopifnot(year==2021)
+  ## Fixed to 2021 for now:
+  if(is.numeric(year)) year <- as.character(year)
+  year <- match.arg(year)
 
   ## Check to see if files already exist:
   cdir <- cache_dir("raw", year, create_subdir=TRUE)
