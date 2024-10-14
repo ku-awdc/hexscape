@@ -12,7 +12,7 @@ randomise_voronoi(
   to_type = "centroid",
   mask_landscape = FALSE,
   additional_info = FALSE,
-  sample_size = 3L,
+  sample_probs = 10^-seq_len(3L),
   max_tries = 3L,
   verbose = 1L
 )
@@ -32,11 +32,11 @@ randomise_voronoi(
 
 \item{additional_info}{option to provide additional columns in the dataframe returned}
 
-\item{sample_size}{the number of random points to generate within each Voronoi cell}
-
 \item{max_tries}{the maximum number of tries before failure}
 
 \item{verbose}{a positive integer determining how much progress output should be displayed (0=silent)}
+
+\item{sample_size}{the number of random points to generate within each Voronoi cell}
 }
 \value{
 The return value depends on the input points:  if the input is an sfc object and additional_info==FALSE, then the output is also an sfc object; if the input is an sf data frame, then the output is also an sf data frame with the random points in the active geometry (which will have the same name as the input); the output is always an sf data frame if additional_info==TRUE, with the randomised points as the active geometry (this will be named geometry if the input is an sfc object, or have the same name as the active geometry in the input if this was an sf data frame)
