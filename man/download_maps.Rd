@@ -4,7 +4,7 @@
 \alias{download_maps}
 \title{Title}
 \usage{
-download_maps(verbose = 1L, year = 2021, paths = NULL)
+download_maps(year = "2021", verbose = 1L, paths = NULL)
 }
 \arguments{
 \item{paths}{}

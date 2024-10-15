@@ -7,7 +7,7 @@
 #' @importFrom  tools R_user_dir
 #'
 #' @export
-cache_dir <- function(subdir=c("raw","gisco","corine"), year=c("2021"), create_subdir=FALSE){
+hs_cache_dir <- function(subdir=c("raw","gisco","corine"), year=c("2021"), create_subdir=TRUE){
 
   subdir <- match.arg(subdir)
 
@@ -28,4 +28,4 @@ cache_dir <- function(subdir=c("raw","gisco","corine"), year=c("2021"), create_s
   return(file.path(bpath, subdir, year))
 }
 
-## TODO: functions cache_backup and cache_restore
+## TODO: if caching doesn't take too long for corine then use R_user_dir("hexscape", "cache") for that rather than data (and remove "raw" from data_dir and put raw data under gisco or corine)

@@ -17,9 +17,9 @@ download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
   year <- match.arg(year)
 
   ## Check to see if files already exist:
-  cdir <- cache_dir("raw", year, create_subdir=TRUE)
-  if( file.exists(file.path(cdir, "nuts.rqs")) && file.exists(file.path(cdir, "lau.rqs")) ){
-    stop("The requested nuts and lau file already exist - to re-download, delete one or both manually (see ?cache_dir)")
+  cdir <- hs_data_dir("gisco", year, create_subdir=TRUE)
+  if( file.exists(file.path(cdir, "raw_nuts.rqs")) && file.exists(file.path(cdir, "raw_lau.rqs")) ){
+    stop("The requested nuts and lau file already exist - to re-download,\n  delete raw_nuts.rqs and raw_lau.rqs from the path given by:\n  hs_data_dir('gisco', ", year, ")")
   }
 
   ## If paths isn't given, impute defaults:
@@ -69,7 +69,7 @@ download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
   stopifnot(inherits(nuts, "sf"), inherits(nuts, "data.frame"), c("NUTS_ID","LEVL_CODE","CNTR_CODE","NUTS_NAME", "geometry") %in% names(nuts))
   nuts <- nuts |> select("NUTS_ID", "LEVL_CODE","CNTR_CODE","NUTS_NAME", "geometry")
 
-  fp <- file.path(cdir, "nuts.rqs")
+  fp <- file.path(cdir, "raw_nuts.rqs")
   if(file.exists(fp)) file.remove(fp)
   qsave(nuts, file=fp)
 
@@ -77,7 +77,7 @@ download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
   ## stopifnot(lau[["YEAR"]] == year)
   lau <- lau |> select("LAU_ID","CNTR_CODE","LAU_NAME","YEAR",POP=str_c("POP_",year),"geometry")
 
-  fp <- file.path(cdir, "lau.rqs")
+  fp <- file.path(cdir, "raw_lau.rqs")
   if(file.exists(fP)) file.remove(fp)
   qsave(lau, file=fp)
 
