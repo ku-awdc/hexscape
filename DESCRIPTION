@@ -33,7 +33,8 @@ Imports:
     ggplot2,
     eurostat,
     units,
-    qs (>= 0.25)
+    qs (>= 0.25),
+    checkmate
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
