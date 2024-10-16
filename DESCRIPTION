@@ -34,7 +34,14 @@ Imports:
     eurostat,
     units,
     qs (>= 0.25),
-    checkmate
+    checkmate,
+    dplyr,
+    geojsonsf,
+    httr2,
+    purrr,
+    rlang,
+    stringr,
+    tibble
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
