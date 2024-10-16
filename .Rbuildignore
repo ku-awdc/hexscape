@@ -4,6 +4,8 @@
 ^notebooks$
 ^patches$
 ^presentation_2021$
+^presentation_2022$
+^releases$
 ^reports$
 ^data-raw$
 ^paper$

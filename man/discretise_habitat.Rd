@@ -29,7 +29,7 @@ discretise_habitat(
 
 \item{raster_shape}{one of hexagons or squares}
 
-\item{h_adj}{adjustment of the bandwidth used by \link\link[=kde2d]{MASS}}
+\item{h_adj}{adjustment of the bandwidth used by \code{\link[MASS:kde2d]{MASS::kde2d()}}}
 
 \item{point_density}{density of points used for kde2d and k-means clustering}
 

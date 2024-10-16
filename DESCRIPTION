@@ -25,17 +25,21 @@ Depends:
     tidyverse,
     R (>= 4.2.0)
 Imports:
-    giscoR,
     sf,
     rmapshaper,
-    igraph,
     pbapply,
     ggplot2,
     eurostat,
     units,
+    geojsonsf,
+    httr2,
+    purrr,
+    rlang,
+    stringr,
     qs (>= 0.25)
 Suggests: 
     testthat (>= 3.0.0),
+    igraph,
     knitr,
     markdown,
     spelling
