@@ -7,7 +7,11 @@
 #' @importFrom purrr quietly
 #'
 #' @export
-load_map <- function(nuts_code, verbose=1L){
+load_map <- function(nuts_code, year="2021", verbose=1L){
+
+
+  nuts_codes(year)
+
 
   if(FALSE && !missing(nuts_label)){
     stop("nuts_label is not yet implemented")

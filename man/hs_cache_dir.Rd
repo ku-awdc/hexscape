@@ -5,7 +5,7 @@
 \title{Title}
 \usage{
 hs_cache_dir(
-  subdir = c("raw", "gisco", "corine"),
+  subdir = c("gisco", "corine"),
   year = c("2021"),
   create_subdir = TRUE
 )
