@@ -67,3 +67,17 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
   return(rv)
 
 }
+#' @description
+#' Add default plotting method for [load_map()].
+#' 
+#' @exportS3Method ggplot2::autoplot
+autoplot.hs_gisco <- function(x, ...) {
+  ggplot2::ggplot(x) +
+    ggplot2::aes(fill = Label, geometry = geometry) + 
+    # `col` is the color of the border
+    ggplot2::geom_sf(col = "transparent") +
+    ggplot2::coord_sf(expand = FALSE) +
+    ggplot2::theme_void() +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), legend.position = "none") +
+    ggplot2::labs(caption = "© EuroGeographics for the administrative boundaries")
+}
