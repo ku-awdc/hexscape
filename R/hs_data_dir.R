@@ -1,7 +1,7 @@
-#' Title
+#' Locations for cached data
 #'
-#' @param subfolder
-#' @param year
+#' @param subfolder Either `gisco` or `corine`.
+#' @param year Default to 2021.
 #' @param create_subfolders
 #'
 #' @importFrom  tools R_user_dir
