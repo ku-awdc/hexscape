@@ -48,7 +48,7 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
       ## TODO: cache internally within the package environment
       ## to avoid subsequent calls to read_map for the same country
       ## and year
-      mp <- hexscape:::read_map(cc, year)
+      mp <- read_map(cc, year)
       return(mp)
     }, .progress = verbose>1L) |>
     bind_rows() ->
