@@ -4,7 +4,6 @@
 #' @param nuts_label
 #' @param verbose
 #'
-#' @importFrom eurostat get_eurostat_geospatial
 #' @importFrom purrr quietly
 #'
 #' @export

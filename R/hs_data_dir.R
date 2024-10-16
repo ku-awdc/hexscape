@@ -17,7 +17,7 @@ hs_data_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdi
   bpath <- R_user_dir("hexscape", "data")
 
   if(!dir.exists(bpath)){
-    cat("Creating package cache directory at '", bpath, "'\n", sep="")
+    cat("Creating package data directory at '", bpath, "'\n", sep="")
     dir.create(bpath, recursive=TRUE)
   }
 

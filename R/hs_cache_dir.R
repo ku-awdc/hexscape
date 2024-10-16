@@ -7,14 +7,14 @@
 #' @importFrom  tools R_user_dir
 #'
 #' @export
-hs_cache_dir <- function(subdir=c("raw","gisco","corine"), year=c("2021"), create_subdir=TRUE){
+hs_cache_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdir=TRUE){
 
   subdir <- match.arg(subdir)
 
   if(is.numeric(year)) year <- as.character(year)
   year <- match.arg(year)
 
-  bpath <- R_user_dir("hexscape", "data")
+  bpath <- R_user_dir("hexscape", "cache")
 
   if(!dir.exists(bpath)){
     cat("Creating package cache directory at '", bpath, "'\n", sep="")
