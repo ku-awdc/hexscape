@@ -2,7 +2,7 @@
 % Please edit documentation in R/hs_data_dir.R
 \name{hs_data_dir}
 \alias{hs_data_dir}
-\title{Title}
+\title{Locations for \code{hexscape} data}
 \usage{
 hs_data_dir(
   subdir = c("gisco", "corine"),
@@ -11,8 +11,15 @@ hs_data_dir(
 )
 }
 \arguments{
+\item{year}{Default to 2021.}
+
+\item{subfolder}{Either \code{gisco} or \code{corine}.}
+
 \item{create_subfolders}{}
 }
 \description{
-Title
+Locations for \code{hexscape} data
+}
+\seealso{
+\code{\link[=hs_cache_dir]{hs_cache_dir()}}
 }
