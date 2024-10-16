@@ -1,28 +1,28 @@
-cache_map <- function(nuts_code, year){
+read_map <- function(country_code, year){
 
-  qassert(nuts_code, "S1")
+  qassert(country_code, "S1")
   qassert(year, "S1")
 
   ## Verify that maps are available:
   ddir <- hs_data_dir("gisco", year, create_subdir=FALSE)
   if( !file.exists(file.path(ddir, "raw_codes.rqs")) || !file.exists(file.path(ddir, "raw_nuts.rqs")) || !file.exists(file.path(ddir, "raw_lau.rqs"))){
-    stop("Maps data have not been downloaded:  see download_maps")
+    stop("Maps data have not been downloaded for the given year:  see download_maps")
   }
-  codes <- qread(file.path(ddir, "raw_codes.rqs"))
+  ## codes <- qread(file.path(ddir, "raw_codes.rqs"))
   nuts <- qread(file.path(ddir, "raw_nuts.rqs"))
   lau <- qread(file.path(ddir, "raw_lau.rqs"))
   ## TODO: save within R package environment
 
   ## nuts_code should be a valid NUTS1 code:
-  all_nuts1 <- codes |> filter(LEVL_CODE==1) |> pull(NUTS_ID)
-  if(!nuts_code %in% all_nuts1) stop("Provided code '", nuts_code, "' is not a valid NUTS1 code")
+  all_nuts0 <- all_nuts_codes(level=0L, year=year)[["NUTS"]]
+  if(!country_code %in% all_nuts0) stop("Provided code '", country_code, "' is not a valid country code")
 
-  ## filter to relevant NUTS1:
+  ## filter to relevant NUTS0:
   nuts |>
-    filter(str_sub(NUTS_ID, 1L, 3L) == nuts_code) ->
+    filter(str_sub(NUTS_ID, 1L, 2L) == country_code) ->
     nuts
   lau |>
-    filter(str_sub(NUTS_ID, 1L, 3L) == nuts_code) |>
+    filter(str_sub(NUTS_ID, 1L, 2L) == country_code) |>
     mutate(LEVL_CODE = 4, NUTS_NAME = LAU_NAME) ->
     lau
 
@@ -33,11 +33,7 @@ cache_map <- function(nuts_code, year){
     select(NUTS="NUTS_ID", Level="LEVL_CODE", Label="NUTS_NAME", "geometry") ->
     all
 
-  stopifnot(nrow(all)==(nnuts+nlau), sum(all[["Level"]]==1L)==1L)
-
-  ## Cache result:
-  cdir <- hs_cache_dir("gisco", year, create_subdir=TRUE)
-  qsave(all, file.path(ddir, str_c(nuts_code, ".rqs")))
+  stopifnot(sum(all[["Level"]]==0L)==1L)
 
   invisible(all)
 }

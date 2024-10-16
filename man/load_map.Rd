@@ -4,9 +4,13 @@
 \alias{load_map}
 \title{Extract a map for given country or NUTS area code}
 \usage{
-load_map(nuts_code, year = "2021", verbose = 1L)
+load_map(nuts_codes, level = NULL, year = "2021", verbose = 1L)
 }
 \arguments{
+\item{nuts_codes}{a character vector of NUTS codes}
+
+\item{level}{option to retrieve specific NUTS levels below matched nuts_codes}
+
 \item{verbose}{}
 }
 \description{

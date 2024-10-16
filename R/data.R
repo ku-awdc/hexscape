@@ -1,17 +1,17 @@
-#' NUTS codes
-#'
-#' A complete list of available NUTS codes (levels 0/1/2/3)
-#'
-#' @format ## `nuts_codes`
-#' A data frame with 2,016 rows and 5 columns:
-#' \describe{
-#'   \item{Code}{Country code}
-#'   \item{Country}{Country name}
-#'   \item{Level}{NUTS level}
-#'   \item{NUTS}{NUTS code}
-#'   \item{Label}{NUTS label}
-#' }
-"nuts_codes"
+# #' NUTS codes
+# #'
+# #' A complete list of available NUTS codes (levels 0/1/2/3)
+# #'
+# #' @format ## `nuts_codes`
+# #' A data frame with 2,016 rows and 5 columns:
+# #' \describe{
+# #'   \item{Code}{Country code}
+# #'   \item{Country}{Country name}
+# #'   \item{Level}{NUTS level}
+# #'   \item{NUTS}{NUTS code}
+# #'   \item{Label}{NUTS label}
+# #' }
+# "nuts_codes"
 
 #' Country codes and names
 #'

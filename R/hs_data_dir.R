@@ -29,3 +29,4 @@ hs_data_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdi
 }
 
 ## TODO: functions hs_data_backup and hs_data_restore
+## TODO: add README.txt to cache and data folders
