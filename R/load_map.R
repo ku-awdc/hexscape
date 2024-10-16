@@ -5,6 +5,10 @@
 #' @param verbose
 #'
 #' @importFrom purrr quietly
+#' @importFrom stringr str_c str_detect str_sub
+#' @importFrom dplyr filter bind_rows pull
+#' @importFrom rlang set_names
+#' @importFrom checkmate qassert assert_numeric
 #'
 #' @export
 load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
@@ -22,8 +26,8 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
 
     # Filter levels:
     all_codes |>
-      filter(Level %in% level) |>
-      pull("NUTS") ->
+      dplyr::filter(Level %in% level) |>
+      dplyr::pull("NUTS") ->
       all_codes
 
     # Match specific codes:
