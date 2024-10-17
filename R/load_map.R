@@ -5,6 +5,10 @@
 #' @param verbose
 #'
 #' @importFrom purrr quietly
+#' @importFrom stringr str_c str_detect str_sub
+#' @importFrom dplyr filter bind_rows pull
+#' @importFrom rlang set_names
+#' @importFrom checkmate qassert assert_numeric
 #'
 #' @export
 load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
@@ -22,8 +26,8 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
 
     # Filter levels:
     all_codes |>
-      filter(Level %in% level) |>
-      pull("NUTS") ->
+      dplyr::filter(Level %in% level) |>
+      dplyr::pull("NUTS") ->
       all_codes
 
     # Match specific codes:
@@ -48,7 +52,7 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
       ## TODO: cache internally within the package environment
       ## to avoid subsequent calls to read_map for the same country
       ## and year
-      mp <- hexscape:::read_map(cc, year)
+      mp <- read_map(cc, year)
       return(mp)
     }, .progress = verbose>1L) |>
     bind_rows() ->
@@ -66,4 +70,18 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
 
   return(rv)
 
+}
+#' @description
+#' Add default plotting method for [load_map()].
+#' 
+#' @exportS3Method ggplot2::autoplot
+autoplot.hs_gisco <- function(x, ...) {
+  ggplot2::ggplot(x) +
+    ggplot2::aes(fill = Label, geometry = geometry) + 
+    # `col` is the color of the border
+    ggplot2::geom_sf(col = "transparent") +
+    ggplot2::coord_sf(expand = FALSE) +
+    ggplot2::theme_void() +
+    ggplot2::theme(legend.title = ggplot2::element_blank(), legend.position = "none") +
+    ggplot2::labs(caption = "© EuroGeographics for the administrative boundaries")
 }

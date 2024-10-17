@@ -31,12 +31,15 @@ Imports:
     ggplot2,
     eurostat,
     units,
+    qs (>= 0.25),
+    checkmate,
+    dplyr,
     geojsonsf,
     httr2,
     purrr,
     rlang,
     stringr,
-    qs (>= 0.25)
+    tibble
 Suggests: 
     testthat (>= 3.0.0),
     igraph,

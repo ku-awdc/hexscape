@@ -1,17 +1,20 @@
-#' Title
+#' Download the NUTS and LAU datasets
 #'
-#' @param year
+#' @param year Default to 2021.
 #' @param verbose
-#' @param paths
+#' @param paths Named character vector, with names `nuts` and ``lau`
 #'
 #' @importFrom httr2 request req_perform_sequential resp_body_string
 #' @importFrom geojsonsf geojson_sf
 #' @importFrom stringr str_c str_detect
-#' @importFrom dplyr if_else bind_rows mutate filter group_split group_by
+#' @importFrom dplyr arrange slice pull if_else bind_rows mutate filter group_split group_by ungroup select
 #' @importFrom purrr map
 #' @importFrom rlang .data
 #' @importFrom qs qsave qread
-#'
+#' @importFrom tibble as_tibble
+#' @importFrom sf st_intersection st_intersects st_centroid st_contains st_crs
+#' @importfrom checkmate qassert assertNames
+#' 
 #' @export
 download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
 

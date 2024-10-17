@@ -2,13 +2,15 @@
 % Please edit documentation in R/download_maps.R
 \name{download_maps}
 \alias{download_maps}
-\title{Title}
+\title{Download the NUTS and LAU datasets}
 \usage{
 download_maps(year = "2021", verbose = 1L, paths = NULL)
 }
 \arguments{
-\item{paths}{}
+\item{year}{Default to 2021.}
+
+\item{paths}{Named character vector, with names \code{nuts} and ``lau`}
 }
 \description{
-Title
+Download the NUTS and LAU datasets
 }

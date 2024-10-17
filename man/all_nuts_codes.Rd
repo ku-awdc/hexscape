@@ -2,15 +2,17 @@
 % Please edit documentation in R/all_nuts_codes.R
 \name{all_nuts_codes}
 \alias{all_nuts_codes}
-\title{Title}
+\title{Retrieve all NUTS code}
 \usage{
 all_nuts_codes(level = 0L:4L, pattern = character(0L), year = "2021")
 }
 \arguments{
-\item{year}{}
+\item{level}{Levels are \code{0L}, \code{1L}, \code{2L} , \code{3L}, and \code{4L}.}
+
+\item{year}{Default to 2021.}
 
 \item{nuts_code}{optional pattern match}
 }
 \description{
-Title
+Retrieve all NUTS code
 }
