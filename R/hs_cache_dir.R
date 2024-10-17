@@ -8,7 +8,6 @@
 #' 
 #' @seealso [hs_data_dir()]
 #'
-#' @export
 hs_cache_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdir=TRUE){
 
   subdir <- match.arg(subdir)
