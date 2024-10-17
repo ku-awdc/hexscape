@@ -14,7 +14,11 @@ TODO
 Authors:
 \itemize{
   \item Mossa Merhi \email{mossa@sund.ku.dk}
-  \item Carlijn Bogaardt \email{Carlijn.Bogaardt@glasgow.ac.uk}
+}
+
+Other contributors:
+\itemize{
+  \item Carlijn Bogaardt \email{Carlijn.Bogaardt@glasgow.ac.uk} [contributor]
 }
 
 }

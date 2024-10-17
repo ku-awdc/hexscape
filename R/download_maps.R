@@ -14,7 +14,7 @@
 #' @importFrom tibble as_tibble
 #' @importFrom sf st_intersection st_intersects st_centroid st_contains st_crs
 #' @importfrom checkmate qassert assertNames
-#' 
+#'
 #' @export
 download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
 
@@ -25,7 +25,7 @@ download_maps <- function(year = "2021", verbose = 1L, paths = NULL){
   ## Check to see if files already exist:
   ddir <- hs_data_dir("gisco", year, create_subdir=TRUE)
   if( file.exists(file.path(ddir, "raw_codes.rqs")) ){
-    stop("The maps files have already been downloaded - to re-download,\n  delete raw_codes.rqs from the path given by:\n  hs_data_dir('gisco', ", year, ")")
+    stop("The maps files have already been downloaded - to re-download, delete the following file before re-running download_maps():  ", file.path(ddir, "raw_codes.rqs"))
   }
 
   ## If paths isn't given, impute defaults:

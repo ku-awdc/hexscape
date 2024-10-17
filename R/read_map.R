@@ -1,8 +1,8 @@
 #' Internal `read_map` function
-#' 
+#'
 #' @param country_code ISO 3166-1 Country Code, e.g., `"DK"`
-#' @param year Default to 2021, passed on to [all_nuts_codes()] and [hs_data_dir()].
-#' 
+#' @param year Default to 2021.
+#'
 read_map <- function(country_code, year){
 
   checkmate::qassert(country_code, "S1")

@@ -13,7 +13,7 @@ Authors@R:
            email = "mossa@sund.ku.dk"),
     person(given = "Carlijn",
            family = "Bogaardt",
-           role = c("aut"),
+           role = c("ctb"),
            email = "Carlijn.Bogaardt@glasgow.ac.uk")
     )
 Description: TODO

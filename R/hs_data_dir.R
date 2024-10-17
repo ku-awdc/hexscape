@@ -5,10 +5,10 @@
 #' @param create_subfolders
 #'
 #' @importFrom  tools R_user_dir
-#' 
+#'
 #' @seealso [hs_cache_dir()]
-#' 
-#' @export
+#'
+#/' @export
 hs_data_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdir=TRUE){
 
   subdir <- match.arg(subdir)
