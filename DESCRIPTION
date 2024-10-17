@@ -25,10 +25,8 @@ Depends:
     tidyverse,
     R (>= 4.2.0)
 Imports:
-    giscoR,
     sf,
     rmapshaper,
-    igraph,
     pbapply,
     ggplot2,
     eurostat,
@@ -44,6 +42,7 @@ Imports:
     tibble
 Suggests: 
     testthat (>= 3.0.0),
+    igraph,
     knitr,
     markdown,
     spelling

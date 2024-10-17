@@ -6,7 +6,7 @@
 #' @param patch_density assumed density of output patches in terms of carrying capacity per km^2
 #' @param raster_size size of hexagons/squares used for rasterisation
 #' @param raster_shape one of hexagons or squares
-#' @param h_adj adjustment of the bandwidth used by \link[MASS][kde2d]
+#' @param h_adj adjustment of the bandwidth used by [MASS::kde2d()]
 #' @param point_density density of points used for kde2d and k-means clustering
 #' @param verbose verbocity setting (0 = silent)
 #'
