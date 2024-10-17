@@ -1,14 +1,16 @@
-#' Title
+#' Retrieve all NUTS code
 #'
-#' @param level
+#' @param level Levels are `0L`, `1L`, `2L` , `3L`, and `4L`.
 #' @param nuts_code optional pattern match
-#' @param year
+#' @param year Default to 2021.
+#' 
+#' @importFrom stringr str_detect
 #'
 #' @export
 all_nuts_codes <- function(level = 0L:4L, pattern = character(0L), year="2021"){
 
-  qassert(pattern, "S*")
-  qassert(level, "N+")
+  checkmate::qassert(pattern, "S*")
+  checkmate::qassert(level, "N+")
 
   if(is.numeric(year)) year <- as.character(year)
   year <- match.arg(year)
@@ -19,20 +21,20 @@ all_nuts_codes <- function(level = 0L:4L, pattern = character(0L), year="2021"){
   }
 
   ## TODO: cache within package environment
-  all_codes <- qread(file.path(ddir, "raw_codes.rqs"))
+  all_codes <- qs::qread(file.path(ddir, "raw_codes.rqs"))
 
   all_codes |>
-    select(NUTS="NUTS_ID", Level="LEVL_CODE", Label="NUTS_NAME") |>
-    filter(Level %in% level) ->
+    dplyr::select(NUTS="NUTS_ID", Level="LEVL_CODE", Label="NUTS_NAME") |>
+    dplyr::filter(Level %in% level) ->
     codes
 
   if(length(pattern)>0L){
     vapply(pattern, function(p){
-      str_detect(all_codes[["NUTS"]], p)
+      stringr::str_detect(all_codes[["NUTS"]], p)
     }, logical(nrow(all_codes))) |>
       apply(1,any) ->
       keep
-    codes <- codes |> filter(keep)
+    codes <- codes |> dplyr::filter(keep)
   }
 
   codes

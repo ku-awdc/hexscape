@@ -1,11 +1,13 @@
-#' Title
+#' Locations for `hexscape` data
 #'
-#' @param subfolder
-#' @param year
+#' @param subfolder Either `gisco` or `corine`.
+#' @param year Default to 2021.
 #' @param create_subfolders
 #'
 #' @importFrom  tools R_user_dir
-#'
+#' 
+#' @seealso [hs_cache_dir()]
+#' 
 #' @export
 hs_data_dir <- function(subdir=c("gisco","corine"), year=c("2021"), create_subdir=TRUE){
 
