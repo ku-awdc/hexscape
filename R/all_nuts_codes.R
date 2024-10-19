@@ -3,7 +3,7 @@
 #' @param level Levels are `0L`, `1L`, `2L` , `3L`, and `4L`.
 #' @param nuts_code optional pattern match
 #' @param year Default to 2021.
-#' 
+#'
 #' @importFrom stringr str_detect
 #'
 #' @export
@@ -30,11 +30,11 @@ all_nuts_codes <- function(level = 0L:4L, pattern = character(0L), year="2021"){
 
   if(length(pattern)>0L){
     vapply(pattern, function(p){
-      stringr::str_detect(all_codes[["NUTS"]], p)
-    }, logical(nrow(all_codes))) |>
+      stringr::str_detect(codes[["NUTS"]], p)
+    }, logical(nrow(codes))) |>
       apply(1,any) ->
       keep
-    codes <- codes |> dplyr::filter(keep)
+    codes <- codes[keep,]
   }
 
   codes

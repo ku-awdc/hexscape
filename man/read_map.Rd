@@ -9,7 +9,7 @@ read_map(country_code, year)
 \arguments{
 \item{country_code}{ISO 3166-1 Country Code, e.g., \code{"DK"}}
 
-\item{year}{Default to 2021, passed on to \code{\link[=all_nuts_codes]{all_nuts_codes()}} and \code{\link[=hs_data_dir]{hs_data_dir()}}.}
+\item{year}{Default to 2021.}
 }
 \description{
 Internal \code{read_map} function

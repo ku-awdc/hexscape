@@ -4,12 +4,14 @@
 \alias{extract_corine}
 \alias{validate_corine_cache}
 \alias{regenerate_corine_cache}
-\title{Extract land use data for a specific country}
+\title{Extract land use data from raw polygon file corresponding to a specific map area}
 \usage{
 extract_corine(
   map,
-  use_cache = validate_corine_cache(),
-  simplify_keep = 0.25,
+  corine_path,
+  type = c("minimal", "reduced", "full"),
+  intersection = TRUE,
+  max_rows = 0L,
   verbose = 1L
 )
 
@@ -18,8 +20,12 @@ validate_corine_cache()
 regenerate_corine_cache(verbose = 1L)
 }
 \arguments{
+\item{type}{one of "minimal" (only CLC and Shape columns; grouped multi-polygon), "reduced" (only CLC and Shape columns but original rows), or "full" (all columns and rows in underlying data).}
+
+\item{max_rows}{target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "minimal" or "reduced").}
+
 \item{verbose}{}
 }
 \description{
-Extract land use data for a specific country
+Extract land use data from raw polygon file corresponding to a specific map area
 }

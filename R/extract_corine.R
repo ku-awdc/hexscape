@@ -2,23 +2,32 @@
 #' @title Extract land use data from raw polygon file corresponding to a specific map area
 #'
 #' @param map
-#' @param use_cache
-#' @param simplify_keep
+#' @param corine_path
+#' @param type one of "minimal" (only CLC and Shape columns; grouped multi-polygon), "reduced" (only CLC and Shape columns but original rows), or "full" (all columns and rows in underlying data).
+#' @param intersection
+#' @param max_rows target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "minimal" or "reduced").
 #' @param verbose
 #'
 #' @importFrom pbapply pblapply pbsapply
-#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection
-#' @importFrom checkmate assert
+#' @importFrom sf st_read st_union st_layers st_transform st_crs st_intersects st_intersection st_make_valid
+#' @importFrom checkmate assert qassert
 #' @importFrom dplyr rename_with
 #'
 #' @export
-extract_corine <- function(map, corine_path, verbose=1L){
+extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
 
   ## TODO: rename extract/read_map/corine for consistency???
 
   assert(inherits(map, "sf"))
-  mapsf <- st_union(map)
+  mapsf <- st_union(map) |> st_make_valid()
 
+  qassert(corine_path, "S1")
+  qassert(max_rows, "N1[0,]")
+
+  type <- match.arg(type)
+  qassert(intersection, "B1")
+
+  ## TODO: cache this in the package environment (against file name):
   if(verbose>0L) cat("Extracting information on layers and codes...\n")
   layers <- st_layers(corine_path)
   st_layers(corine_path)$name |>
@@ -26,22 +35,39 @@ extract_corine <- function(map, corine_path, verbose=1L){
     set_names() |>
     map( ~
       corine_path |>
-        st_read(query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE) |>
-        suppressWarnings() |>
+        # st_read(query = str_c("SELECT DISTINCT Code_18 FROM ", .x), quiet=TRUE) |>
+        # suppressWarnings() |>
+        st_read(query = str_c("SELECT Code_18, COUNT(*) FROM ", .x, " GROUP BY Code_18"), quiet=TRUE) |>
         rename_with(toupper)
     ) |>
     bind_rows(.id="Layer") |>
-    distinct(CODE_18) |>
-    arrange(CODE_18) |>
-    pull(CODE_18) ->
+    group_by(CLC = CODE_18) |>
+    summarise(Total = sum(`COUNT...`), .groups="drop") |>
+    arrange(desc(Total)) ->
     codes
+
+  ## Determine number of chunks to use:
+  chunks <- if(is.infinite(max_rows)) 1L else min(nrow(codes), ceiling(sum(codes[["Total"]])/max_rows))
+  code_list <- lapply(seq_len(chunks), function(x) numeric(0))
+  tally <- numeric(chunks)
+  for(i in seq_along(codes[["Total"]])){
+    c <- which.min(tally)[1L]
+    tally[c] <- tally[c] + codes[["Total"]][i]
+    code_list[[c]] <- c(code_list[[c]], codes[["CLC"]][i])
+  }
+  code_list <- lapply(code_list, sort)
+  stopifnot(
+    codes[["CLC"]] %in% unlist(code_list),
+    unlist(code_list) %in% codes[["CLC"]],
+    length(unlist(code_list))==nrow(codes)
+  )
 
   st <- Sys.time()
   get_corine_sf <- function(cc){
 
-    code <- codes[cc]
+    code <- code_list[[cc]]
     if(verbose > 2L){
-      cat("Extracting code ", code, " ... ", sep="")
+      cat("Extracting codes: ", str_c(code,collapse=","), " ... ", sep="")
 
       ## hack:
       retfun <- function(rv){
@@ -49,71 +75,105 @@ extract_corine <- function(map, corine_path, verbose=1L){
         return(rv)
       }
     }else{
-      retfun <- function(rv) rv
+      retfun <- identity
     }
 
-    ## Read the data from the corine file:
+    if(type%in%c("minimal","reduced")){
+      # Note: this is marginally faster (and probably uses less memory) than *:
+      selst <- "SELECT Code_18 AS CLC, Shape "
+    }else if(type=="full"){
+      selst <- "SELECT * "
+    }else{
+      stop("Unhandled value for type")
+    }
+
+    if(chunks==1L){
+      qryfun <- function(l) str_c(selst, "FROM ", l)
+    }else if(chunks==nrow(codes)){
+      # Note: this is no faster than IN...
+      qryfun <- function(l) str_c(selst, "FROM ", l, " WHERE Code_18 = ", code)
+    }else{
+      qryfun <- function(l) str_c(selst, "FROM ", l, " WHERE Code_18 IN (", str_c(code, collapse=","), ")")
+    }
+
+    ## Read the data from the corine file and extract only
+    ## features that intersect with the supplied map:
     layers$name |>
       set_names() |>
-      lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) |>
-      {\(x){ x[sapply(x,nrow)>0L] }}() |>
-      lapply(function(x){
-        x |>
-          set_names(case_when(colnames(x) %in% c("Shape", "Layer") ~ colnames(x), TRUE ~ toupper(colnames(x)))) |>
-          st_transform(st_crs(mapsf))
+      lapply(function(l){
+        st_read(corine_path, query = qryfun(l), quiet=TRUE) |>
+          rename_with(\(x) case_when(x=="Shape" ~ x, str_detect(toupper(x), "^CODE_") ~ "CLC", TRUE ~ toupper(x))) ->
+          df
+        if(nrow(df)==0L) return(NULL)
+        df |>
+          st_transform(st_crs(mapsf)) |>
+          filter(st_intersects(Shape, mapsf, sparse=FALSE)[,1]) |>
+          mutate(Shape = st_make_valid(Shape))
       }) |>
       bind_rows() ->
       obj
 
-    obj |>
-      mutate(use = st_intersects(Shape, mapsf, sparse=FALSE)[,1]) |>
-      filter(use) |>
-      select(-use) ->
-      obj
+    ## Optionally reduce to intersection of the map:
+    if(intersection){
+      obj <- obj |> mutate(Shape = st_intersection(Shape, mapsf))
+    }
+
+    ## Optionally convert to multipolygon:
+    if(type%in%c("minimal") && nrow(obj) > 0L){
+      obj |>
+        group_by(CLC) |>
+        summarise(Shape = st_union(Shape), .groups="drop") |>
+        arrange(CLC) ->
+        obj
+    }
 
     if(nrow(obj)==0) return(retfun(NULL))
     return(retfun(obj))
   }
 
-  if(verbose > 0L) cat("Extracting land use data and intersecting with map provided...\n", sep="")
+  if(verbose > 0L) cat("Extracting land use data for ", nrow(codes), " codes", if(!chunks %in% c(1,nrow(codes))) str_c(" in ", chunks, " batches"), "...\n", sep="")
   # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
-  if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
-  length(codes) |>
+  if(chunks > 1L && verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
+  chunks |>
     # sample.int to randomise ordering (more realistic time to completion)
     sample.int() |>
     afun(get_corine_sf) |>
     bind_rows() ->
     cr
 
-
   ## Add in areas not covered by corine as missing land use type:
   # Special case of no matching corine data:
-  if(verbose > 1L) cat("Determining overall corine coverage...\n", sep="")
+  if(verbose > 0L) cat("Determining overall corine coverage...\n", sep="")
   if(nrow(cr)==0L){
     missingcc <- mapsf
   }else{
-    missingcc <- st_difference(mapsf |> st_make_valid(), st_union(cr$Shape) |> st_make_valid()) |> st_make_valid()
+    missingcc <- st_difference(mapsf, st_union(cr[["Shape"]])) |> st_make_valid()
   }
   if(!all(is.na(st_dimension(missingcc)))){
     propmiss <- as.numeric( st_area(missingcc) / st_area(mapsf) )
     msg <- str_c("Corine coverage for supplied area is incomplete (", round(1-propmiss,3)*100, "%)")
     if(propmiss > 0.001){
-      ## TODO: add missing explicitly to data frame produced
-      if(verbose > 0L) cat("WARNING:", msg, "\n")
+      if(verbose > 0L) cat(msg, "\n")
       warning(msg)
     }
 
+    tibble(OBJECTID=0L, CLC = NA_character_, REMARK = NA_character_, AREA_HA = 0.0, ID = "MISSING_CC", Shape = missingcc) |>
+      st_as_sf() ->
+      corine_blank
+    if(type %in% c("minimal","reduced")){
+      corine_blank <- corine_blank |> select(CLC, Shape)
+    }
+
     if(nrow(cr)==0L){
-      corine_raw <- tibble(OBJECTID=0L, CODE_18 = NA_character_, REMARK = NA_character_, AREA_HA = 0.0, ID = "MISSING_CC", Shape = missingcc) |> st_as_sf()
+      corine_raw <- corine_blank
     }else{
-      corine_raw <- cr |>
-        bind_rows(
-          tibble(OBJECTID=0L, CODE_18 = NA_character_, REMARK = NA_character_, AREA_HA = 0.0, ID = "MISSING_CC", Shape = missingcc) |> st_as_sf()
-        )
+      corine_raw <- bind_rows(cr, corine_blank)
     }
   }else{
     corine_raw <- cr
   }
+
+  if(verbose>0L) cat("Done in ", round(as.numeric(Sys.time()-st, units="mins"), 1), " minutes.\n")
 
   return(corine_raw)
 
