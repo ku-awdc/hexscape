@@ -3,9 +3,9 @@
 #'
 #' @param map
 #' @param corine_path
-#' @param type one of "minimal" (only CLC and Shape columns; grouped multi-polygon), "reduced" (only CLC and Shape columns but original rows), or "full" (all columns and rows in underlying data).
+#' @param type one of "reduced" (only CLC and Shape columns with original features), "grouped" (as for "grouped" but same CLC codes joined into multi-polygons), or "full" (all columns and rows in underlying data).
 #' @param intersection
-#' @param max_rows target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "minimal" or "reduced").
+#' @param max_rows target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "grouped" or "reduced").
 #' @param verbose
 #'
 #' @importFrom pbapply pblapply pbsapply
@@ -29,7 +29,8 @@ read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verb
   ## TODO: validate corine_path and work out corine_year
 
   map <- load_map(nuts_code, year=map_year)
-  corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=max_rows, verbose=vetbose)
+  corine_raw <- extract_corine(map, corine_path, type="reduced", intersection=TRUE, max_rows=max_rows, verbose=verbose)
+  attr(corine_raw, "nuts1") <- nuts_code
   attr(corine_raw, "map_year") <- map_year
   attr(corine_raw, "corine_year") <- corine_year
   attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
@@ -38,12 +39,12 @@ read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verb
   ddir <- hexscape:::hs_data_dir("corine", corine_year, create_subdir=TRUE)
   qs::qsave(corine_raw, file.path(ddir, str_c(nuts_code, ".rqs")), preset="archive")
 
-  invisible(corine_raw)
+  invisible(file.path(ddir, str_c(nuts_code, ".rqs")))
 }
 
 #' @rdname read_corine
 #' @export
-extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
+extract_corine <- function(map, corine_path, type=c("reduced","grouped","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
 
   ## TODO: rename extract/read_map/corine for consistency???
 
@@ -107,7 +108,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
       retfun <- identity
     }
 
-    if(type%in%c("minimal","reduced")){
+    if(type%in%c("grouped","reduced")){
       # Note: this is marginally faster (and probably uses less memory) than *:
       selst <- "SELECT Code_18 AS CLC, Shape "
     }else if(type=="full"){
@@ -148,7 +149,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
     }
 
     ## Optionally convert to multipolygon:
-    if(type%in%c("minimal") && nrow(obj) > 0L){
+    if(type%in%c("grouped") && nrow(obj) > 0L){
       obj |>
         group_by(CLC) |>
         summarise(Shape = st_union(Shape), .groups="drop") |>
@@ -189,7 +190,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
     tibble(OBJECTID=0L, CLC = NA_character_, REMARK = NA_character_, AREA_HA = 0.0, ID = "MISSING_CC", Shape = missingcc) |>
       st_as_sf() ->
       corine_blank
-    if(type %in% c("minimal","reduced")){
+    if(type %in% c("grouped","reduced")){
       corine_blank <- corine_blank |> select(CLC, Shape)
     }
 

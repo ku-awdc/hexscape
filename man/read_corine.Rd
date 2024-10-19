@@ -10,18 +10,18 @@ read_corine(nuts_code, year = "2021", corine_path, max_rows = 0L, verbose = 1L)
 extract_corine(
   map,
   corine_path,
-  type = c("minimal", "reduced", "full"),
+  type = c("reduced", "grouped", "full"),
   intersection = TRUE,
   max_rows = 0L,
   verbose = 1L
 )
 }
 \arguments{
-\item{max_rows}{target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "minimal" or "reduced").}
+\item{max_rows}{target maxinum number of features to retrieve at a time - this represents a trade off between speed and memory footprint. Special values of 0 means extract each CLC individually (minimum memory requirement), and Inf means all features simultaneously (around 30GB available memory required, for type "grouped" or "reduced").}
 
 \item{verbose}{}
 
-\item{type}{one of "minimal" (only CLC and Shape columns; grouped multi-polygon), "reduced" (only CLC and Shape columns but original rows), or "full" (all columns and rows in underlying data).}
+\item{type}{one of "reduced" (only CLC and Shape columns with original features), "grouped" (as for "grouped" but same CLC codes joined into multi-polygons), or "full" (all columns and rows in underlying data).}
 }
 \description{
 Read land use data from raw polygon file corresponding to a specific map area

@@ -6,7 +6,7 @@
 \usage{
 hs_data_dir(
   subdir = c("gisco", "corine"),
-  year = c("2021"),
+  year = c("2018", "2021"),
   create_subdir = TRUE
 )
 }

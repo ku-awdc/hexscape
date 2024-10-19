@@ -1,4 +1,5 @@
 library("hexscape")
+library("pbapply")
 
 corine_year <- "2018"
 map_year <- "2021"
@@ -8,16 +9,12 @@ out_path <- "~/Desktop/corine"
 if(!dir.exists(file.path(out_path, corine_year))) dir.create(file.path(out_path, corine_year), recursive=TRUE)
 
 an1 <- c("DK0", "LU0", all_nuts_codes(level=1L, pattern="UK")[["NUTS"]])
-for(n1 in an1){
-  map <- load_map(n1, year=map_year)
-  corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=5e5, verbose=1L)
-  attr(corine_raw, "map_year") <- map_year
-  attr(corine_raw, "corine_year") <- corine_year
-  attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
-
-  ## Save:
-  qs::qsave(corine_raw, file.path(out_path, corine_year, str_c(n1, ".rqs")), preset="archive")
-}
+pblapply(an1, function(n1){
+  path <- read_corine(n1, map_year, corine_path, max_rows=5e5, verbose=0L)
+  file.copy(path, out_path)
+  ## So we can test downloads:
+  file.remove(path)
+})
 
 ## Corine info file:
 tibble(
@@ -30,19 +27,12 @@ tibble(
   info
 qs::qsave(info, file.path(out_path, "info.rqs"), preset="archive")
 
-## TODO: save_corine takes a nuts1 code and saves to the hs_data folder
-
 
 ## TODO: st_buffer and st_simplify on map???
 
 ## Note: 5e5 rows is fastest for DK0 (similar to Inf); reduced compresses to same size as minimal
 ## but is probably easier to filter for specific NUTS2/3/4 areas?!?
+map <- load_map("DK0")
 corine_raw <- extract_corine(map, corine_path, type="reduced", intersection=TRUE, max_rows=0, verbose=1L)
 corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=5e5, verbose=1L)
 corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=Inf, verbose=1L)
-
-attr(corine_raw, "map_year") <- year
-attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
-
-## Save:
-qs::qsave(corine_raw, str_c(n3, ".rqs"), preset="archive")
