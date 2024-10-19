@@ -4,6 +4,7 @@
 \alias{extract_corine}
 \alias{validate_corine_cache}
 \alias{regenerate_corine_cache}
+\alias{read_corine}
 \title{Extract land use data from raw polygon file corresponding to a specific map area}
 \usage{
 extract_corine(
@@ -18,6 +19,8 @@ extract_corine(
 validate_corine_cache()
 
 regenerate_corine_cache(verbose = 1L)
+
+read_corine(nuts_code, year = "2021", corine_path, max_rows = 0L, verbose = 1L)
 }
 \arguments{
 \item{type}{one of "minimal" (only CLC and Shape columns; grouped multi-polygon), "reduced" (only CLC and Shape columns but original rows), or "full" (all columns and rows in underlying data).}

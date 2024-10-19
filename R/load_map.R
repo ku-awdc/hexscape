@@ -67,17 +67,18 @@ load_map <- function(nuts_codes, level=NULL, year="2021", verbose=1L){
   ## when is.null(levels))
 
   class(rv) <- c("hs_gisco", class(rv))
+  attr(rv, "map_year") <- year
 
   return(rv)
 
 }
 #' @description
 #' Add default plotting method for [load_map()].
-#' 
+#'
 #' @exportS3Method ggplot2::autoplot
 autoplot.hs_gisco <- function(x, ...) {
   ggplot2::ggplot(x) +
-    ggplot2::aes(fill = Label, geometry = geometry) + 
+    ggplot2::aes(fill = Label, geometry = geometry) +
     # `col` is the color of the border
     ggplot2::geom_sf(col = "transparent") +
     ggplot2::coord_sf(expand = FALSE) +

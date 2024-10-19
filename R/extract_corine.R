@@ -13,6 +13,8 @@
 #' @importFrom checkmate assert qassert
 #' @importFrom dplyr rename_with
 #'
+
+#' @rdname extract_corine
 #' @export
 extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
 
@@ -624,4 +626,31 @@ regenerate_corine_cache <- function(verbose=1L){
   qsave(info, file=file.path(clc_cache, "info.rqs"))
 
   invisible(info)
+}
+
+#' @rdname extract_corine
+#' @export
+read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verbose=1L){
+
+  qassert(nuts_code, "S1")
+  stopifnot(nuts_code %in% all_nuts_codes(level=1L)[["NUTS"]])
+
+  if(is.numeric(year)) year <- as.character(year)
+  map_year <- match.arg(year)
+
+  qassert(corine_path, "S1")
+  corine_year <- "2018"
+  ## TODO: validate corine_path and work out corine_year
+
+  map <- load_map(nuts_code, year=map_year)
+  corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=max_rows, verbose=vetbose)
+  attr(corine_raw, "map_year") <- map_year
+  attr(corine_raw, "corine_year") <- corine_year
+  attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
+
+  ## Save:
+  ddir <- hexscape:::hs_data_dir("corine", corine_year, create_subdir=TRUE)
+  qs::qsave(corine_raw, file.path(ddir, str_c(nuts_code, ".rqs")), preset="archive")
+
+  invisible(corine_raw)
 }
