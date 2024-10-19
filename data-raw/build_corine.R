@@ -1,20 +1,37 @@
 library("hexscape")
 
-year <- "2018"
+corine_year <- "2018"
+map_year <- "2021"
 
 corine_path <- "~/Documents/Resources/Datasets/Corine/u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg"
 out_path <- "~/Desktop/corine"
+if(!dir.exists(file.path(out_path, corine_year))) dir.create(file.path(out_path, corine_year), recursive=TRUE)
 
-an3 <- c("DK0", "LU0", all_nuts_codes(level=1L, pattern="UK")[["NUTS"]])
-for(n3 in an3){
-  map <- load_map(n3)
+an1 <- c("DK0", "LU0", all_nuts_codes(level=1L, pattern="UK")[["NUTS"]])
+for(n1 in an1){
+  map <- load_map(n1, year=map_year)
   corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=5e5, verbose=1L)
-  attr(corine_raw, "map_year") <- year
+  attr(corine_raw, "map_year") <- map_year
+  attr(corine_raw, "corine_year") <- corine_year
   attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
 
   ## Save:
-  qs::qsave(corine_raw, file.path(out_path, str_c(n3, ".rqs")), preset="archive")
+  qs::qsave(corine_raw, file.path(out_path, corine_year, str_c(n1, ".rqs")), preset="archive")
 }
+
+## Corine info file:
+tibble(
+  NUTS1 = all_nuts_codes(level=1L)[["NUTS"]],
+  CorineYear = corine_year,
+  MapYear = map_year
+) |>
+  mutate(Link = if_else(NUTS1 %in% an1, str_c("https://www.costmodds.org/rsc/hexscape/corine/", corine_year, "/", NUTS1, ".rqs"), "")) |>
+  mutate(Comment = if_else(NUTS1 %in% an1, as.character(Sys.Date()), "CORINE data is currently only available for Denmark, Luxembourg and UK. We are working on finding a hosting solution for all CORINE data, but in the meantime see ?save_corine")) ->
+  info
+qs::qsave(info, file.path(out_path, "info.rqs"), preset="archive")
+
+## TODO: save_corine takes a nuts1 code and saves to the hs_data folder
+
 
 ## TODO: st_buffer and st_simplify on map???
 
