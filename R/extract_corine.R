@@ -1,5 +1,5 @@
-#' @name extract_corine
-#' @title Extract land use data from raw polygon file corresponding to a specific map area
+#' @name read_corine
+#' @title Read land use data from raw polygon file corresponding to a specific map area
 #'
 #' @param map
 #' @param corine_path
@@ -14,7 +14,34 @@
 #' @importFrom dplyr rename_with
 #'
 
-#' @rdname extract_corine
+#' @rdname read_corine
+#' @export
+read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verbose=1L){
+
+  qassert(nuts_code, "S1")
+  stopifnot(nuts_code %in% all_nuts_codes(level=1L)[["NUTS"]])
+
+  if(is.numeric(year)) year <- as.character(year)
+  map_year <- match.arg(year)
+
+  qassert(corine_path, "S1")
+  corine_year <- "2018"
+  ## TODO: validate corine_path and work out corine_year
+
+  map <- load_map(nuts_code, year=map_year)
+  corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=max_rows, verbose=vetbose)
+  attr(corine_raw, "map_year") <- map_year
+  attr(corine_raw, "corine_year") <- corine_year
+  attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
+
+  ## Save:
+  ddir <- hexscape:::hs_data_dir("corine", corine_year, create_subdir=TRUE)
+  qs::qsave(corine_raw, file.path(ddir, str_c(nuts_code, ".rqs")), preset="archive")
+
+  invisible(corine_raw)
+}
+
+#' @rdname read_corine
 #' @export
 extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
 
@@ -36,7 +63,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
     as.list() |>
     set_names() |>
     map( ~
-      corine_path |>
+        corine_path |>
         # st_read(query = str_c("SELECT DISTINCT Code_18 FROM ", .x), quiet=TRUE) |>
         # suppressWarnings() |>
         st_read(query = str_c("SELECT Code_18, COUNT(*) FROM ", .x, " GROUP BY Code_18"), quiet=TRUE) |>
@@ -228,7 +255,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
           select(CLC = CODE_18, Shape) |>
           group_by(CLC) |>
           summarise(geometry = st_union(Shape) |> st_make_valid(),
-                    .groups="drop") |>
+            .groups="drop") |>
           mutate(Area = st_area(geometry) |> set_units(km^2) |> as.numeric()) |>
           arrange(CLC) ->
           corine_aggr
@@ -318,9 +345,9 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
     codes <- as.list(st_layers(corine_path)$name) %>%
       set_names() %>%
       map_df( ~
-                suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
-                `colnames<-`(., toupper(colnames(.)))
-              , .id="Layer") %>%
+          suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
+          `colnames<-`(., toupper(colnames(.)))
+        , .id="Layer") %>%
       distinct(CODE_18) |>
       arrange(CODE_18) |>
       pull(CODE_18)
@@ -462,7 +489,7 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
           select(CLC = CODE_18, Shape) |>
           group_by(CLC) |>
           summarise(geometry = st_union(Shape) |> st_make_valid(),
-                    .groups="drop") |>
+            .groups="drop") |>
           mutate(Area = st_area(geometry) |> set_units(km^2) |> as.numeric()) |>
           arrange(CLC) ->
           corine_aggr
@@ -522,135 +549,4 @@ extract_corine <- function(map, corine_path, type=c("minimal","reduced","full"),
   if(verbose > 1L) cat("Done\n", sep="")
   return(corine_simplified)
 
-}
-
-#' @rdname extract_corine
-#' @export
-validate_corine_cache <- function(){
-
-  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
-  if(!dir.exists(clc_cache)){
-    dir.create(clc_cache)
-  }
-  if(!file.exists(file.path(clc_cache, "info.rqs"))){
-    cache_ok <- FALSE
-    attr(cache_ok, "reason") <- "no cache"
-  }else{
-    info <- qread(file.path(clc_cache, "info.rqs"))
-    if(length(attr(info, "version"))==1L && attr(info, "version") >= package_version("0.4.5")){
-      if(!all(str_c("clc_", info, ".rqs") %in% list.files(clc_cache))){
-        cache_ok <- FALSE
-        attr(cache_ok, "reason") <- "incomplete cache"
-      }else{
-        cache_ok <- TRUE
-        attr(cache_ok, "reason") <- "OK"
-      }
-    }else{
-      cache_ok <- FALSE
-      attr(cache_ok, "reason") <- "out-dated cache"
-    }
-  }
-  return(cache_ok)
-
-}
-
-#' @rdname extract_corine
-#' @export
-regenerate_corine_cache <- function(verbose=1L){
-
-  corine_path <- file.path(hexscape_getOption("storage_folder"), "raw_data", "u2018_clc2018_v2020_20u1_geoPackage/DATA/U2018_CLC2018_V2020_20u1.gpkg")
-  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
-
-  if(verbose > 1L) cat("Extracting information on layers and codes...\n", sep="")
-  layers <- st_layers(corine_path)
-  codes <- as.list(layers$name) %>%
-    set_names() %>%
-    map_df( ~
-              suppressWarnings(st_read(corine_path, query = str_c("SELECT DISTINCT Code_18 FROM ", .x), layer=.x, quiet=TRUE)) %>%
-              `colnames<-`(., toupper(colnames(.)))
-            , .id="Layer") %>%
-    distinct(CODE_18) |>
-    arrange(CODE_18) |>
-    pull(CODE_18)
-
-  st <- Sys.time()
-  get_clc <- function(cc){
-
-    code <- codes[cc]
-    if(verbose > 2L){
-      cat("Extracting code ", code, " ... ", sep="")
-
-      ## hack:
-      retfun <- function(rv){
-        cat(round(cc/length(codes)*100), "% complete after ", round(as.numeric(Sys.time()-st, units="mins")), " minutes\n", sep="")
-        return(rv)
-      }
-    }else{
-      retfun <- function(rv) rv
-    }
-
-    ## Extract the code and cache:
-    obj <- layers$name %>%
-      `names<-`(.,.) %>%
-      set_names() %>%
-      lapply(function(l) suppressWarnings(st_read(corine_path, query = str_c("SELECT * FROM ", l, " WHERE Code_18 = ", code), layer=l, quiet=TRUE))) %>%
-      `[`(sapply(.,nrow)>0) %>%
-      lapply(function(x){
-        x %>%
-          `colnames<-`(., case_when(colnames(.) %in% c("Shape", "Layer") ~ colnames(.), TRUE ~ toupper(colnames(.)))) %>%
-          st_transform(st_crs(mapsf))
-      }) %>%
-      bind_rows()
-
-    ## Then save:
-    qsave(obj, file=file.path(clc_cache, str_c("clc_", code, ".rqs")))
-
-    return(code)
-  }
-
-  if(verbose > 1L) cat("Extracting raw land use data relating to ", length(codes), " CLC codes...\n", sep="")
-
-  # Note: verbose=0 - no update, verbose>2 - detailed update with lapply
-  if(verbose %in% c(1L,2L)) afun <- pblapply else afun <- lapply
-  length(codes) |>
-    # sample.int to randomise ordering (more realistic time to completion)
-    sample.int() |>
-    afun(get_clc) |>
-    simplify2array() ->
-    info
-
-  ## Then save the codes and file:
-  attr(info, "version") <- hexscape_version()
-  attr(info, "corine_path") <- corine_path
-
-  qsave(info, file=file.path(clc_cache, "info.rqs"))
-
-  invisible(info)
-}
-
-#' @rdname extract_corine
-#' @export
-read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verbose=1L){
-
-  qassert(nuts_code, "S1")
-  stopifnot(nuts_code %in% all_nuts_codes(level=1L)[["NUTS"]])
-
-  if(is.numeric(year)) year <- as.character(year)
-  map_year <- match.arg(year)
-
-  qassert(corine_path, "S1")
-  corine_year <- "2018"
-  ## TODO: validate corine_path and work out corine_year
-
-  map <- load_map(nuts_code, year=map_year)
-  corine_raw <- extract_corine(map, corine_path, type="minimal", intersection=TRUE, max_rows=max_rows, verbose=vetbose)
-  attr(corine_raw, "map_year") <- map_year
-  attr(corine_raw, "corine_year") <- corine_year
-  attr(corine_raw, "hexscape_version") <- packageVersion("hexscape")
-
-  ## Save:
-  ddir <- hexscape:::hs_data_dir("corine", corine_year, create_subdir=TRUE)
-  qs::qsave(corine_raw, file.path(ddir, str_c(nuts_code, ".rqs")), preset="archive")
-
-  invisible(corine_raw)
 }
