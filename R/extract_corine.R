@@ -16,20 +16,20 @@
 
 #' @rdname read_corine
 #' @export
-read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verbose=1L){
+read_corine <- function(nuts_code, map_year="2021", path, max_rows = 0L, verbose=1L){
 
   qassert(nuts_code, "S1")
   stopifnot(nuts_code %in% all_nuts_codes(level=1L)[["NUTS"]])
 
-  if(is.numeric(year)) year <- as.character(year)
-  map_year <- match.arg(year)
+  if(is.numeric(map_year)) map_year <- as.character(map_year)
+  map_year <- match.arg(map_year)
 
-  qassert(corine_path, "S1")
+  qassert(path, "S1")
   corine_year <- "2018"
   ## TODO: validate corine_path and work out corine_year
 
   map <- load_map(nuts_code, year=map_year)
-  corine_raw <- extract_corine(map, corine_path, type="reduced", intersection=TRUE, max_rows=max_rows, verbose=verbose)
+  corine_raw <- extract_corine(map, path, type="reduced", intersection=TRUE, max_rows=max_rows, verbose=verbose)
   attr(corine_raw, "nuts1") <- nuts_code
   attr(corine_raw, "map_year") <- map_year
   attr(corine_raw, "corine_year") <- corine_year
@@ -44,14 +44,15 @@ read_corine <- function(nuts_code, year="2021", corine_path, max_rows = 0L, verb
 
 #' @rdname read_corine
 #' @export
-extract_corine <- function(map, corine_path, type=c("reduced","grouped","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
+extract_corine <- function(map, path, type=c("reduced","grouped","full"), intersection=TRUE, max_rows = 0L, verbose=1L){
 
   ## TODO: rename extract/read_map/corine for consistency???
 
   assert(inherits(map, "sf"))
   mapsf <- st_union(map) |> st_make_valid()
 
-  qassert(corine_path, "S1")
+  qassert(path, "S1")
+  corine_path <- path
   qassert(max_rows, "N1[0,]")
 
   type <- match.arg(type)

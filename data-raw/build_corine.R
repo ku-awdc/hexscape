@@ -11,7 +11,7 @@ if(!dir.exists(file.path(out_path, corine_year))) dir.create(file.path(out_path,
 an1 <- c("DK0", "LU0", all_nuts_codes(level=1L, pattern="UK")[["NUTS"]])
 pblapply(an1, function(n1){
   path <- read_corine(n1, map_year, corine_path, max_rows=5e5, verbose=0L)
-  file.copy(path, out_path)
+  file.copy(path, file.path(out_path,corine_year), overwrite=TRUE)
   ## So we can test downloads:
   file.remove(path)
 })

@@ -1,5 +1,5 @@
 #' @name load_corine
-#' @title Extract land use data for a specific country
+#' @title Extract land use data for a specific NUTS code area
 #'
 #' @param nuts_code
 #' @param verbose
@@ -12,62 +12,133 @@
 #' @importFrom units set_units
 #' @importFrom qs qsave qread
 #' @importFrom rlang set_names
+#' @importFrom checkmate qassert assert_choice assert_number assert_names
+#' @importFrom viridisLite viridis
 #'
 
 #' @rdname load_corine
 #' @export
-cache_all_corine <- function(exclude = character(0), randomise=FALSE, verbose=1L){
+load_corine <- function(nuts_codes, clc_group=3L, simplify_keep=1.0, union=TRUE, use_cache=TRUE, verbose=1L, map_year=hs_year("map"), corine_year=hs_year("corine")){
 
+  ## Check the nuts_code(s) are valid:
+  qassert("S+", nuts_codes)
+  invalid <- which(!nuts_codes %in% all_nuts_codes()[["NUTS"]])
+  if(length(invalid)>0L){
+    stop("The following NUTS codes supplied are invalid: ", str_c(nuts_codes[invalid], collapse=", "))
+  }
 
-  ## Get all maps:
-  cat("Loading all maps...\n")
+  years <- check_years(map=map_year, corine=corine_year)
+  map_year <- years["map_year"]
+  corine_year <- years["corine_year"]
+
+  ## Convert nuts_codes to a list of maps and verify that all files are available:
+  ddir <- hs_data_dir("corine", corine_year, create_subdir=FALSE)
   nuts_codes |>
-    filter(Level==0) |>
-    pull(NUTS) |>
-    as.list() |>
-    pblapply(load_map, verbose=0L) ->
-  maps_unused
+    set_names() |>
+    lapply(function(nc){
+      ## Load map:
+      map <- load_map(nc, map_year=map_year)
+      ## Convert to NUTS1 (maybe multiple):
+      anc <- all_nuts_codes(level=1L, pattern=str_sub(nc, 1L, min(3L, str_length(nc))))[["NUTS"]]
+      ## Check all files are available:
+      fp <- file.path(ddir, str_c(anc, ".rqs"))
+      fp[!file.exists(file.path(ddir, str_c(anc, ".rqs")))] <- ""
+      names(fp) <- anc
+      list(corine_path=fp, map=map)
+    }) ->
+    corine_info
 
-  ## Get all NUTS1 codes:
-  nuts_codes |> filter(Level==1, !NUTS %in% nuts1_no_corine) |> pull(NUTS) -> nuts1
-
-  ## Randomise if necessary:
-  if(randomise){
-    nuts1 <- nuts1[sample.int(length(nuts1))]
+  corine_info |>
+    lapply(function(x) x[["corine_path"]]) |>
+    set_names(NULL) |>
+    do.call("c", args=_) ->
+    cpaths
+  if(any(cpaths=="")){
+    stop("Corine data for ", corine_year, " has not been downloaded for the following requested NUTS1 areas:\n  ", str_c(names(cpaths)[cpaths==""], collapse=", "))
   }
 
-  ## Excludes:
-  exclmtch <- vapply(toupper(exclude), function(x) str_detect(nuts1, x), logical(length(nuts1)))
-  if(any(!apply(exclmtch,2,any))){
-    cat("WARNING: One or more patterns supplied to exclude not found\n")
-  }
-  nuts1 <- nuts1[!apply(exclmtch,1,any)]
+  ## clc_group can be 1:3 (where 3 is no aggregation), or a data frame:
+  if(is.numeric(clc_group)){
+    clc_group <- as.integer(clc_group)
+    assert_choice(clc_group, c(1L,2L,3L))
 
-  ## Then run load_corine for everything:
-  cat("Loading all corine data...\n")
-  nuts1 |>
-    as.list() |>
-    lapply(function(n1){
-      temp <- load_corine(n1, union=TRUE, use_cache=TRUE, verbose=verbose)
-      return(NULL)
+    clc_codes |>
+      mutate(Label = case_when(
+        clc_group == 1L ~ .data$Label1,
+        clc_group == 2L ~ .data$Label2,
+        clc_group == 3L ~ .data$Label3,
+      )) |>
+      mutate(Code = str_sub(CLC, 1L, clc_group)) |>
+      group_by(Code) |>
+      mutate(Red = mean(Red)/255, Green = mean(Green)/255, Blue = mean(Blue)/255) |>
+      ungroup() |>
+      mutate(Colour = rgb(Red, Green, Blue)) |>
+      select(CLC, Label, Code, Colour) ->
+      clc_group
+
+  }else if(is.data.frame(clc_group)){
+
+    assert_names(names(clc_group), type="unique", must.include = c("CLC", "Label"))
+    assert_names(clc_group[["CLC"]], type="unique", must.include = clc_codes[["CLC"]])
+
+    if(!"Code" %in% names(clc_group)) clc_group[["Code"]] <- clc_group[["Label"]]
+    if(!"Colour" %in% names(clc_group)){
+      clc_group[["Colour"]] <- viridis(nrow(clc_group))
+                                # scales::hue_pal()(nrow(clc_group))
+    }
+    qassert("S+", clc_group[["Colour"]])
+
+  }else{
+    stop("Invalid argument for 'clc_group'")
+  }
+
+  bind_rows(
+    clc_group,
+    tibble(
+      CLC = NA_character_,
+      Label = "Missing data",
+      Code = NA_character_,
+      Colour = "grey75"
+    )
+  ) ->
+    clc_group
+
+  qassert(simplify_keep, "N1[0.1,1]")
+  qassert(union, "B1")
+  qassert(use_cache, "B1")
+  qassert(verbose, "N1[0,]")
+
+
+  ## See if any relevant corine data has been cached:
+
+
+  ## Loop over maps:
+  corine_info |>
+    lapply(function(nc){
+
+      ## Load data, group, simplify, cache and return:
+      lapply(nc[["corine_path"]], function(x){
+        corine_raw <- qread(x)
+
+
+      }) |>
+        bind_rows() ->
+        corine_raw
+
+      ## Intersect with map provided:
+      map <- nc[["map"]]
+
     })
 
-  ## Then cleanup:
-  clc_cache <- file.path(hexscape_getOption("storage_folder"), "processed_data", "clc_by_code")
-  unlink(list.files(clc_cache, full.names=TRUE), recursive=TRUE)
 
-  invisible(NULL)
-}
 
-#' @rdname load_corine
-#' @export
-load_corine <- function(nuts_code, union=FALSE, use_cache=validate_corine_cache(), verbose=1L){
+  ##
 
-  ## Start by checking the nuts_code(s) are valid:
-  invalid <- which(!nuts_code %in% nuts_codes[["NUTS"]])
-  if(length(invalid)>0L){
-    stop("The following NUTS codes supplied are invalid: ", str_c(nuts_code[invalid], collapse=", "))
-  }
+  ## First do the aggregation:
+
+
+
+
 
   tibble(NUTS = nuts_code) |>
     left_join(
