@@ -2,21 +2,22 @@
 % Please edit documentation in R/load_corine.R
 \name{load_corine}
 \alias{load_corine}
-\alias{cache_all_corine}
-\title{Extract land use data for a specific country}
+\title{Extract land use data for a specific NUTS code area}
 \usage{
-cache_all_corine(exclude = character(0), randomise = FALSE, verbose = 1L)
-
 load_corine(
-  nuts_code,
-  union = FALSE,
-  use_cache = validate_corine_cache(),
-  verbose = 1L
+  nuts_codes,
+  clc_group = 3L,
+  simplify_keep = 1,
+  union = TRUE,
+  use_cache = TRUE,
+  verbose = 1L,
+  map_year = hs_year("map"),
+  corine_year = hs_year("corine")
 )
 }
 \arguments{
 \item{simplify_keep}{passed on to \code{\link[rmapshaper]{ms_simplify}}}
 }
 \description{
-Extract land use data for a specific country
+Extract land use data for a specific NUTS code area
 }

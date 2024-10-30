@@ -5,11 +5,11 @@
 \alias{extract_corine}
 \title{Read land use data from raw polygon file corresponding to a specific map area}
 \usage{
-read_corine(nuts_code, year = "2021", corine_path, max_rows = 0L, verbose = 1L)
+read_corine(nuts_code, map_year = "2021", path, max_rows = 0L, verbose = 1L)
 
 extract_corine(
   map,
-  corine_path,
+  path,
   type = c("reduced", "grouped", "full"),
   intersection = TRUE,
   max_rows = 0L,
