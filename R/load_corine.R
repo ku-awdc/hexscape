@@ -21,7 +21,7 @@
 load_corine <- function(nuts_codes, clc_group=3L, simplify_keep=1.0, union=TRUE, use_cache=TRUE, verbose=1L, map_year=hs_year("map"), corine_year=hs_year("corine")){
 
   ## Check the nuts_code(s) are valid:
-  qassert("S+", nuts_codes)
+  qassert(nuts_codes, "S+")
   invalid <- which(!nuts_codes %in% all_nuts_codes()[["NUTS"]])
   if(length(invalid)>0L){
     stop("The following NUTS codes supplied are invalid: ", str_c(nuts_codes[invalid], collapse=", "))
