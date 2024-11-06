@@ -86,7 +86,7 @@ load_corine <- function(nuts_codes, clc_group=3L, simplify_keep=1.0, union=TRUE,
       clc_group[["Colour"]] <- viridis(nrow(clc_group))
                                 # scales::hue_pal()(nrow(clc_group))
     }
-    qassert("S+", clc_group[["Colour"]])
+    qassert(clc_group[["Colour"]], "S+")
 
   }else{
     stop("Invalid argument for 'clc_group'")
