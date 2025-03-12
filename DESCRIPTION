@@ -23,8 +23,9 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Depends:
     tidyverse,
-    R (>= 4.2.0)
+    R (>= 4.3.0)
 Imports:
+    S7,
     sf,
     rmapshaper,
     pbapply,
