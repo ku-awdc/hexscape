@@ -1,5 +1,6 @@
 #' @importFrom S7 new_class
 
+if(FALSE){
 HSmap <- new_class("HSmap",
   properties = list(
     proj = class_character,
@@ -12,3 +13,4 @@ HSmap <- new_class("HSmap",
 HSmap(data=tibble(
   a = 1
 ))
+}
